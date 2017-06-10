@@ -81,7 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Midi.cs" />
-    <Compile Include="ModImport.cs" />
+    <Compile Include="SongImport.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Third party\BEBinaryReader.cs" />
     <Compile Include="Third party\BEBinaryWriter.cs" />

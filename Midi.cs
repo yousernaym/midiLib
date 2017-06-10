@@ -22,7 +22,7 @@ namespace Midi
 			rightBound = x2;
 			notes = nodeNotes;
 			int middle = (x2+x1) / 2;
-			if (notes.Count == 0 || middle - x1 < 4 * song.TimeDiv)
+			if (notes.Count == 0 || middle - x1 < 4 * song.TicksPerBeat)
 				return;
 			List<Note> leftNoteList = new List<Note>();
 			List<Note> rightNoteList = new List<Note>();
@@ -175,11 +175,11 @@ namespace Midi
 		public const float StartTempo = 120;
 		int formatType;
 		public int FormatType { get { return formatType; } }
-		int timeDiv;
-		public int TimeDiv { get { return timeDiv; } set { timeDiv = value; } }
+		int ticksPerBeat;
+		public int TicksPerBeat { get { return ticksPerBeat; } set { ticksPerBeat = value; } }
 
 		int songLengthInTicks;
-		public int SongLengthInTicks { get { return songLengthInTicks; } set { songLengthInTicks = value; } }
+		public int SongLengthT { get { return songLengthInTicks; } set { songLengthInTicks = value; } }
 		int minPitch;
 		public int MinPitch { get { return minPitch; } }
 		int maxPitch;
@@ -230,7 +230,7 @@ namespace Midi
 				int headerSize = file.ReadInt32();
 				formatType = (int)file.ReadInt16();
 				int numTracks = (int)file.ReadInt16();
-				timeDiv = (int)file.ReadInt16();
+				ticksPerBeat = (int)file.ReadInt16();
 				songLengthInTicks = 0;
 				maxPitch = 0;
 				minPitch = 127;
@@ -402,7 +402,7 @@ namespace Midi
 			foreach (Track track in Tracks)
 			{
 				track.NoteBsp = new Midi.NoteBsp();
-				track.NoteBsp.createNode(0, SongLengthInTicks, track.Notes, this);
+				track.NoteBsp.createNode(0, SongLengthT, track.Notes, this);
 			}
 		}
 	}

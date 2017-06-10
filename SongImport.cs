@@ -38,7 +38,7 @@ namespace Midi
 	{
 		public IntPtr tempoEvents;
 		public int numTempoEvents;
-        //public int timeDiv;
+        public int ticksPerBeat;
         public int songLengthT;
 		public int minPitch;
 		public int maxPitch;
@@ -101,7 +101,7 @@ namespace Midi
 			if (mixdown)
 				audioPath = mixdownPath;
 
-			timeDiv = 24;
+			ticksPerBeat = marSong.ticksPerBeat;
 			songLengthInTicks = marSong.songLengthT;
 			maxPitch = marSong.maxPitch;
 			minPitch = marSong.minPitch;
