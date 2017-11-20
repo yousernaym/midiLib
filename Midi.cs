@@ -9,6 +9,7 @@ using System.Windows.Forms;
 
 namespace Midi
 {
+	public enum FileType { Midi, Mod, Sid };
 	public class NoteBsp
 	{
 		List<Note> notes;
@@ -118,6 +119,49 @@ namespace Midi
 		{
 			return getNotes(x1, x2, 0, 127);
 		}
+
+		int noteStartBeforeStopComp(Note runningNote, Note newNote)
+		{
+			if (runningNote.stop < newNote.start)
+				return -1;
+			else if (runningNote.start > newNote.start)
+				return 1;
+			else 
+				return 0;
+		}
+
+		public int getLastNoteIndexAtTime(int time)
+		{
+			if (Notes[0].start > time || Notes.Last().stop < time)
+				return -1;
+			Note refNote = new Note();
+			
+			refNote.start = time;
+			int index = Notes.BinarySearch(refNote, Comparer<Note>.Create(noteStartBeforeStopComp));
+			if (index < 0)
+				return index;
+			//Find a note crossing "time"
+			//int step = Notes.Count / 2;
+			//int index = 0;
+			//while (true)
+			//{
+			//	if (Notes[index].start > time)
+			//		index -= step;
+			//	else if (Notes[index].stop < time)
+			//		index += step;
+			//	else
+			//		break;
+			//	step /= 2;
+			//	if (step == 0)
+			//		return -1;
+			//}
+
+			//Find last matching note
+			while (index + 1 < Notes.Count && Notes[index + 1].start < time)
+				index++;
+			
+			return index;
+		}
 	}
 	public class TempoEvent
 	{
@@ -144,7 +188,7 @@ namespace Midi
 		}
 		public void setTempo(int _tempo)
 		{
-			Tempo = (float)(60000000.0 / _tempo);
+			Tempo = (double)(60000000.0 / _tempo);
 		}
 	}
 	public partial class Song
@@ -197,10 +241,10 @@ namespace Midi
 				return file.ReadInt32() == 0x4D546864;
 			}
 		}
-		public void openFile(string path, ref string audioPath, bool modInsTrack, bool mixdown, double songLengthS)
+		public void openFile(string path, ref string audioPath, bool modInsTrack, bool mixdown, double songLengthS, FileType noteFileType)
 		{
 			//if (path == null || path == "")
-				//return;
+			//return;
 			//try
 			//{
 			//    using (BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open)))
@@ -212,10 +256,10 @@ namespace Midi
 			//    MessageBox.Show("Couldn't open song file " + path + "\n" + e.Message);
 			//}
 
-			if (!importSongFile(path, ref audioPath, modInsTrack, mixdown, songLengthS))
-			{
+			if (noteFileType == FileType.Midi)
 				openMidiFile(path);
-			}
+			else
+				importSongFile(path, ref audioPath, modInsTrack, mixdown, songLengthS);
 		}
 
 		public void openMidiFile(string path)
@@ -401,7 +445,7 @@ namespace Midi
 		{
 			foreach (Track track in Tracks)
 			{
-				track.NoteBsp = new Midi.NoteBsp();
+				track.NoteBsp = new NoteBsp();
 				track.NoteBsp.createNode(0, SongLengthT, track.Notes, this);
 			}
 		}
