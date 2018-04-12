@@ -55,7 +55,9 @@ namespace Midi
 		//    get { return modWavFileName; }
 		//    //set { modWavFileName = value; }
 		//}
-		static string mixdownDir = "";
+		public static string MixdownDir { get; set; } = "";
+		public static string MixdownFileName { get; set; } = ""; //"" = source filename minus extension plus .wav
+
 		[DllImport("NoteExtractor.dll", EntryPoint = "initLib", CallingConvention = CallingConvention.Cdecl)]
 		static extern void _initLib();
 		[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl)]
@@ -68,33 +70,34 @@ namespace Midi
 		{
 			return Marshal.PtrToStringAnsi(getMixdownPath_intptr());
 		}
-		public static void initLib(string _mixdownDir)
+		public static void initLib(string mixdownDir, string mixdownFileName = "")
 		{
-			mixdownDir = _mixdownDir;
-			if (!Directory.Exists(mixdownDir))
-				Directory.CreateDirectory(mixdownDir);
+			MixdownDir = mixdownDir;
+			MixdownFileName = mixdownFileName;
+			Directory.CreateDirectory(mixdownDir);
 			_initLib();
 		}
 		public static void deleteMixdowns()
 		{
-			if (Directory.Exists(mixdownDir))
+			if (Directory.Exists(MixdownDir))
 			{
-				foreach (string file in Directory.GetFiles(mixdownDir))
+				foreach (string file in Directory.GetFiles(MixdownDir))
 					File.Delete(file);
 			}
 		}
 		public static void deleteMixdownDir()
 		{
 			deleteMixdowns();
-			if (Directory.Exists(mixdownDir))
-				Directory.Delete(mixdownDir);
+			if (Directory.Exists(MixdownDir))
+				Directory.Delete(MixdownDir);
 		}
 
 		bool importSongFile(string path, ref string audioPath, bool modInsTrack, bool mixdown, double songLengthS)
 		{
             //bool mixdown = audioPath == null || audioPath == "";
 			Marshal_Song marSong;
-			string mixdownPath = mixdown ? Path.Combine(mixdownDir, Path.GetFileName(path))+".wav" : null;
+			string fileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(path) + ".wav" : MixdownFileName;
+			string mixdownPath = mixdown ? Path.Combine(MixdownDir, fileName) : null;
 			if (!loadFile(path, out marSong, mixdownPath, modInsTrack, songLengthS))
 				return false;
 

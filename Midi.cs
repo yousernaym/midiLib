@@ -270,7 +270,7 @@ namespace Midi
 				//Header
 				int headerId = file.ReadInt32();
 				if (headerId != 0x4D546864)
-					throw (new Exception("Unrecognized format."));
+					throw (new Exception("Unrecognized midi format."));
 				int headerSize = file.ReadInt32();
 				formatType = (int)file.ReadInt16();
 				int numTracks = (int)file.ReadInt16();
