@@ -96,8 +96,8 @@ namespace Midi
 		{
             //bool mixdown = audioPath == null || audioPath == "";
 			Marshal_Song marSong;
-			string fileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(path) + ".wav" : MixdownFileName;
-			string mixdownPath = mixdown ? Path.Combine(MixdownDir, fileName) : null;
+			string mixdownFileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(path) + ".wav" : MixdownFileName;
+			string mixdownPath = mixdown ? Path.Combine(MixdownDir, mixdownFileName) : null;
 			if (!loadFile(path, out marSong, mixdownPath, modInsTrack, songLengthS))
 				return false;
 
