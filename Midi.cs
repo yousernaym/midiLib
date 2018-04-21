@@ -259,7 +259,8 @@ namespace Midi
 			if (noteFileType == FileType.Midi)
 				openMidiFile(path);
 			else
-				importSongFile(path, ref audioPath, modInsTrack, mixdown, songLengthS);
+				if (!importSongFile(path, ref audioPath, modInsTrack, mixdown, songLengthS))
+					throw (new FormatException());
 		}
 
 		public void openMidiFile(string path)
@@ -270,7 +271,7 @@ namespace Midi
 				//Header
 				int headerId = file.ReadInt32();
 				if (headerId != 0x4D546864)
-					throw (new Exception("Unrecognized midi format."));
+					throw (new FormatException("Unrecognized midi format."));
 				int headerSize = file.ReadInt32();
 				formatType = (int)file.ReadInt16();
 				int numTracks = (int)file.ReadInt16();
@@ -291,7 +292,7 @@ namespace Midi
 					int chunkId = file.ReadInt32();
 					totalBytesRead += 4;
 					if (chunkId != 0x4D54726B)
-						throw (new Exception("Wrong chunk id for track " + i + "."));
+						throw (new FormatException("Wrong chunk id for track " + i + "."));
 					int chunkSize = file.ReadInt32();
 					totalBytesRead += 4;
 					chunkBytesRead = 0;
