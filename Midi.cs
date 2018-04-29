@@ -9,7 +9,9 @@ using System.Windows.Forms;
 
 namespace Midi
 {
+	public enum MixdownType { None, Tparty, Internal }
 	public enum FileType { Midi, Mod, Sid };
+
 	public class NoteBsp
 	{
 		List<Note> notes;
@@ -241,26 +243,13 @@ namespace Midi
 				return file.ReadInt32() == 0x4D546864;
 			}
 		}
-		public void openFile(string path, ref string audioPath, bool modInsTrack, bool mixdown, double songLengthS, FileType noteFileType)
+		public void openFile(ImportOptions options, out string mixdownPath)
 		{
-			//if (path == null || path == "")
-			//return;
-			//try
-			//{
-			//    using (BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open)))
-			//    {
-			//    }
-			//}
-			//catch(Exception e)
-			//{
-			//    MessageBox.Show("Couldn't open song file " + path + "\n" + e.Message);
-			//}
-
-			if (noteFileType == FileType.Midi)
-				openMidiFile(path);
+			mixdownPath = null;
+			if (options.NoteFileType == FileType.Midi)
+				openMidiFile(options.NotePath);
 			else
-				if (!importSongFile(path, ref audioPath, modInsTrack, mixdown, songLengthS))
-					throw (new FormatException());
+				importSongFile(options, out mixdownPath);
 		}
 
 		public void openMidiFile(string path)

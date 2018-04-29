@@ -92,17 +92,14 @@ namespace Midi
 				Directory.Delete(MixdownDir);
 		}
 
-		bool importSongFile(string path, ref string audioPath, bool modInsTrack, bool mixdown, double songLengthS)
+		void importSongFile(ImportOptions options, out string mixdownPath)
 		{
-            //bool mixdown = audioPath == null || audioPath == "";
+			//bool mixdown = audioPath == null || audioPath == "";
 			Marshal_Song marSong;
-			string mixdownFileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(path) + ".wav" : MixdownFileName;
-			string mixdownPath = mixdown ? Path.Combine(MixdownDir, mixdownFileName) : null;
-			if (!loadFile(path, out marSong, mixdownPath, modInsTrack, songLengthS))
-				return false;
-
-			if (mixdown)
-				audioPath = mixdownPath;
+			string mixdownFileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(options.NotePath) + ".wav" : MixdownFileName;
+			mixdownPath = options.MixdownType == MixdownType.Internal ? Path.Combine(MixdownDir, mixdownFileName) : null;
+			if (!loadFile(options.NotePath, out marSong, mixdownPath, options.InsTrack, options.SongLengthS))
+				throw new FileFormatException(new Uri(options.NotePath));
 
 			ticksPerBeat = marSong.ticksPerBeat;
 			songLengthInTicks = marSong.songLengthT;
@@ -138,7 +135,18 @@ namespace Midi
 				}
                 marSong.tracks += Marshal.SizeOf(typeof(Marshal_Track));
 			}
-			return true;
 		}
+	}
+
+	public class ImportOptions
+	{
+		public string NotePath;
+		public string AudioPath;
+		public MixdownType MixdownType;
+		public bool InsTrack; //One track per instrument instead of per channel
+		public FileType NoteFileType;
+		public int SubSong;
+		public int NumSubSongs;
+		public float SongLengthS; //Song length in seconds
 	}
 }
