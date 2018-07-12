@@ -63,7 +63,7 @@ namespace Midi
 		[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl)]
 		public static extern void exitLib();
 		[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-		static extern bool loadFile(string path, out Marshal_Song marSong, string mixdownPath, bool modInsTrack, double songLengthS);
+		static extern bool loadFile(string path, out Marshal_Song marSong, string mixdownPath, bool modInsTrack, double songLengthS, int subSong);
 		[DllImport("NoteExtractor.dll", EntryPoint = "getMixdownPath", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
 		static extern IntPtr getMixdownPath_intptr();
 		public static string getMixdownPath()
@@ -98,7 +98,7 @@ namespace Midi
 			Marshal_Song marSong;
 			string mixdownFileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(options.NotePath) + ".wav" : MixdownFileName;
 			mixdownPath = options.MixdownType == MixdownType.Internal ? Path.Combine(MixdownDir, mixdownFileName) : null;
-			if (!loadFile(options.NotePath, out marSong, mixdownPath, options.InsTrack, options.SongLengthS))
+			if (!loadFile(options.NotePath, out marSong, mixdownPath, options.InsTrack, options.SongLengthS, options.SubSong))
 				throw new FileFormatException(new Uri(options.NotePath));
 
 			ticksPerBeat = marSong.ticksPerBeat;
