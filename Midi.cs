@@ -224,8 +224,8 @@ namespace Midi
 		int ticksPerBeat;
 		public int TicksPerBeat { get { return ticksPerBeat; } set { ticksPerBeat = value; } }
 
-		int songLengthInTicks;
-		public int SongLengthT { get { return songLengthInTicks; } set { songLengthInTicks = value; } }
+		int songLengtT;
+		public int SongLengthT { get { return songLengtT; } set { songLengtT = value; } }
 		int minPitch;
 		public int MinPitch { get { return minPitch; } }
 		int maxPitch;
@@ -265,12 +265,12 @@ namespace Midi
 				formatType = (int)file.ReadInt16();
 				int numTracks = (int)file.ReadInt16();
 				ticksPerBeat = (int)file.ReadInt16();
-				songLengthInTicks = 0;
+				songLengtT = 0;
 				maxPitch = 0;
 				minPitch = 127;
 				tracks = new List<Track>();
 				tempoEvents = new List<TempoEvent>();
-				tempoEvents.Add(new TempoEvent(0, 120.0f));
+				//tempoEvents.Add(new TempoEvent(0, 120.0f));
 				totalBytesRead = 14;
 				//Track chunks
 				for (int i = 0; i < numTracks; i++)
@@ -291,8 +291,8 @@ namespace Midi
 						readEvent(Tracks.Last(), ref absoluteTime, file, chunkSize);
 					}
 					//totalBytesRead += chunkBytesRead;
-					if (songLengthInTicks < absoluteTime)
-						songLengthInTicks = absoluteTime;
+					if (songLengtT < absoluteTime)
+						songLengtT = absoluteTime;
 					if (Tracks.Last().Length < absoluteTime)
 						Tracks.Last().Length = absoluteTime;
 

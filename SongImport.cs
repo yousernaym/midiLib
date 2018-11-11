@@ -99,10 +99,13 @@ namespace Midi
 			string mixdownFileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(options.NotePath) + ".wav" : MixdownFileName;
 			mixdownPath = options.MixdownType == MixdownType.Internal ? Path.Combine(MixdownDir, mixdownFileName) : null;
 			if (!loadFile(options.NotePath, out marSong, mixdownPath, options.InsTrack, options.SongLengthS, options.SubSong))
+			{
+				WebBrowser browser = new WebBrowser();
+				browser.Url = new Uri("file://" + Path.Combine(Directory.GetCurrentDirectory(), "SidSPectro", "index.html"));
 				throw new FileFormatException(new Uri(options.NotePath));
-
+			}
 			ticksPerBeat = marSong.ticksPerBeat;
-			songLengthInTicks = marSong.songLengthT;
+			songLengtT = marSong.songLengthT;
 			maxPitch = marSong.maxPitch;
 			minPitch = marSong.minPitch;
 			numPitches = maxPitch - minPitch + 1;
