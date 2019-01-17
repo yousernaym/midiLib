@@ -59,7 +59,7 @@ namespace Midi
 		public static string MixdownFileName { get; set; } = ""; //"" = source filename minus extension plus .wav
 
 		[DllImport("NoteExtractor.dll", EntryPoint = "initLib", CallingConvention = CallingConvention.Cdecl)]
-		static extern void _initLib();
+		static extern void initNoteExtractor();
 		[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl)]
 		public static extern void exitLib();
 		[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
@@ -75,7 +75,7 @@ namespace Midi
 			MixdownDir = mixdownDir;
 			MixdownFileName = mixdownFileName;
 			Directory.CreateDirectory(mixdownDir);
-			_initLib();
+			initNoteExtractor();
 		}
 		public static void deleteMixdowns()
 		{
@@ -98,10 +98,14 @@ namespace Midi
 			Marshal_Song marSong;
 			string mixdownFileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(options.NotePath) + ".wav" : MixdownFileName;
 			mixdownPath = options.MixdownType == MixdownType.Internal ? Path.Combine(MixdownDir, mixdownFileName) : null;
+
+			//WebBrowser browser = new WebBrowser();
+			//string path = "file://" + Path.Combine(Directory.GetCurrentDirectory(), "..\\..\\..\\tparty\\SidSPectro", "index.html");
+			//browser.Url = new Uri(path);
+			//browser.ObjectForScripting = 
+
 			if (!loadFile(options.NotePath, out marSong, mixdownPath, options.InsTrack, options.SongLengthS, options.SubSong))
 			{
-				WebBrowser browser = new WebBrowser();
-				browser.Url = new Uri("file://" + Path.Combine(Directory.GetCurrentDirectory(), "SidSPectro", "index.html"));
 				throw new FileFormatException(new Uri(options.NotePath));
 			}
 			ticksPerBeat = marSong.ticksPerBeat;

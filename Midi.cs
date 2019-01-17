@@ -193,10 +193,16 @@ namespace Midi
 			Tempo = (double)(60000000.0 / _tempo);
 		}
 	}
+	struct RunningStatus
+	{
+		public byte type;
+		public byte channel;
+	}
+
 	public partial class Song
 	{
-		int[] pitchStatus = new int[128];
-		byte runningType;
+		int[,] pitchStatus = new int[16,128];
+		RunningStatus[] runningStatus = new RunningStatus[16];
 		byte runningChannel;
 		int totalBytesRead;
 		int chunkBytesRead;
@@ -243,13 +249,9 @@ namespace Midi
 				return file.ReadInt32() == 0x4D546864;
 			}
 		}
-		public void openFile(ImportOptions options, out string mixdownPath)
+		public void openFile(string path)
 		{
-			mixdownPath = null;
-			if (options.NoteFileType == FileType.Midi)
-				openMidiFile(options.NotePath);
-			else
-				importSongFile(options, out mixdownPath);
+			openMidiFile(path);
 		}
 
 		public void openMidiFile(string path)
@@ -327,9 +329,9 @@ namespace Midi
 			int deltaTime = readVarLengthValue(stream);
 			absoluteTime += deltaTime;
 					
-			byte b = stream.ReadByte();
+			byte firstByte = stream.ReadByte(); //First byte in event
 			ChunkBytesRead++;
-			if (b == 0xff) //meta event
+			if (firstByte == 0xff) //meta event
 			{
 				MetaEvent e = new MetaEvent();
 				int time = absoluteTime;
@@ -358,58 +360,60 @@ namespace Midi
 				if (e.Type != 0x2f && ChunkBytesRead >= chunkSize)
 					throw (new Exception("End-of-track event missing at end of track."));
 			}
-			else if (b == 0xf0 || b == 0xf7) //sysex
+			else if (firstByte == 0xf0 || firstByte == 0xf7) //sysex
 			{
-				while (b != 0xf7)
+				while (firstByte != 0xf7)
 				{
-					b = stream.ReadByte();
+					firstByte = stream.ReadByte();
 					ChunkBytesRead++;
 				}
 			}
 			else //Channel event
 			{
-				ChannelEvent e = new ChannelEvent();
+				ChannelEvent chnEvent = new ChannelEvent();
+				chnEvent.Channel = (byte)(firstByte & 0xf);
 				int time = absoluteTime;
-				if (b > 127)
+				if (firstByte > 127) //Status information present
 				{
-					splitByte(out e.Type, out e.Channel, b);
-					runningType = e.Type;
-					runningChannel = e.Channel;
-					e.Param1 = stream.ReadByte();
+					//splitByte(out chnEvent.Type, out chnEvent.Channel, firstByte);
+					chnEvent.Type = (byte)((firstByte >> 4) & 0xf);
+					runningStatus[chnEvent.Channel].type = chnEvent.Type;
+					chnEvent.Param1 = stream.ReadByte();
 					ChunkBytesRead++;
 				}
 				else //Running status
 				{
-					e.Type = runningType;
-					e.Channel = runningChannel;
-					e.Param1 = b;
+					chnEvent.Type = runningStatus[chnEvent.Channel].type;
+					chnEvent.Param1 = firstByte;
 				}
-				if (e.Type != 0xc && e.Type != 0xd)
+				if (chnEvent.Type != 0xc && chnEvent.Type != 0xd)
 				{
-					e.Param2 = stream.ReadByte();
+					chnEvent.Param2 = stream.ReadByte();
 					ChunkBytesRead++;
 				}
 				
-				if (e.Type == 0x9)  //Note on
+				if (chnEvent.Type == 0x9)  //Note on
 				{
-					if (minPitch > e.Param1)
-						minPitch = e.Param1;
-					if (maxPitch < e.Param1)
-						maxPitch = e.Param1;
-					if (e.Param2 == 0)
-						e.Type = 0x8;
+					//param1 = pitch, param2 = velocity
+					if (minPitch > chnEvent.Param1)
+						minPitch = chnEvent.Param1;
+					if (maxPitch < chnEvent.Param1)
+						maxPitch = chnEvent.Param1;
+					if (chnEvent.Param2 == 0)
+						chnEvent.Type = 0x8;  //Turn off note if velocity is 0
 				}
-				if (e.Type == 0x8)
+				if (chnEvent.Type == 0x8)  //note off
 				{
-					if (pitchStatus[e.Param1] == -1)
+					//param1 = pitch, param2 = velocity
+					if (pitchStatus[chnEvent.Channel, chnEvent.Param1] == -1)
 						return;
 
 					Note note = new Note();
-					note.start = pitchStatus[e.Param1];
+					note.start = pitchStatus[chnEvent.Channel, chnEvent.Param1];
 					note.stop = absoluteTime;
-					note.channel = e.Channel;
-					note.pitch = e.Param1;
-					note.velocity = e.Param2;
+					note.channel = chnEvent.Channel;
+					note.pitch = chnEvent.Param1;
+					note.velocity = chnEvent.Param2;
 					for (int i = 0; i <= track.Notes.Count; i++)
 					{
 						if (i == track.Notes.Count || track.Notes[i].start > note.start)
@@ -418,14 +422,14 @@ namespace Midi
 							break;
 						}
 					}
-					pitchStatus[e.Param1] = -1;
+					pitchStatus[chnEvent.Channel, chnEvent.Param1] = -1;
 				}
-				else if (e.Type == 0x9)
+				else if (chnEvent.Type == 0x9)
 				{
-					pitchStatus[e.Param1] = absoluteTime;
+					pitchStatus[chnEvent.Channel, chnEvent.Param1] = absoluteTime;
 				}
 				else
-					track.addEvent(time, e);
+					track.addEvent(time, chnEvent);
 				if (ChunkBytesRead >= chunkSize)
 					throw (new Exception("Error at chunk byte "+ChunkBytesRead+" of "+chunkSize+". Last track event is channel event. Shouls be meta event."));
 
