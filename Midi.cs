@@ -84,14 +84,14 @@ namespace Midi
 	public class Track
 	{
 		public SortedDictionary<int,List<MetaEvent>> MetaEvents { get; set; }
-		public SortedDictionary<int, List<ChannelEvent>> ChannelEvents { get; set; }
+		//public SortedDictionary<int, List<ChannelEvent>> ChannelEvents { get; set; }
 		public List<Note> Notes { get; set; }
 		public NoteBsp NoteBsp { get; set; }
 		public int Length { get; set; }
 		public string Name { get; set; }
 		public Track()
 		{
-			ChannelEvents = new SortedDictionary<int, List<ChannelEvent>>();
+			//ChannelEvents = new SortedDictionary<int, List<ChannelEvent>>();
 			MetaEvents = new SortedDictionary<int, List<MetaEvent>>();
 			Notes = new List<Note>();
 		}
@@ -101,12 +101,12 @@ namespace Midi
 				MetaEvents.Add(time, new List<MetaEvent>());
 			MetaEvents[time].Add(e);
 		}
-		public void addEvent(int time, ChannelEvent e)
-		{
-			if (!ChannelEvents.ContainsKey(time))
-				ChannelEvents.Add(time, new List<ChannelEvent>());
-			ChannelEvents[time].Add(e);
-		}
+		//public void addEvent(int time, ChannelEvent e)
+		//{
+		//	if (!ChannelEvents.ContainsKey(time))
+		//		ChannelEvents.Add(time, new List<ChannelEvent>());
+		//	ChannelEvents[time].Add(e);
+		//}
 		public List<Note> getNotes(int x1, int x2, int minPitch, int maxPitch)
 		{
 			if (x2 < 0 || x1 > Length)
@@ -193,17 +193,17 @@ namespace Midi
 			Tempo = (double)(60000000.0 / _tempo);
 		}
 	}
-	struct RunningStatus
+
+	class RunningStatus
 	{
-		public byte type;
+		public byte eventType;
 		public byte channel;
 	}
 
 	public partial class Song
 	{
-		int[,] pitchStatus = new int[16,128];
-		RunningStatus[] runningStatus = new RunningStatus[16];
-		byte runningChannel;
+		int[,] startOfPlayingNotes = new int[16, 128];
+		RunningStatus runningStatus = new RunningStatus();
 		int totalBytesRead;
 		int chunkBytesRead;
 		int ChunkBytesRead
@@ -241,6 +241,9 @@ namespace Midi
 				
 		public Song()
 		{
+			for (int i = 0; i < startOfPlayingNotes.GetLength(0); i++)
+				for (int j = 0; j < startOfPlayingNotes.GetLength(1); j++)
+					startOfPlayingNotes[i, j] = -1;
 		}
 		public bool isMidiFile(string path)
 		{
@@ -331,14 +334,14 @@ namespace Midi
 					
 			byte firstByte = stream.ReadByte(); //First byte in event
 			ChunkBytesRead++;
-			if (firstByte == 0xff) //meta event
+			if (firstByte == 0xff || firstByte == 0xf0 || firstByte == 0xf7) //meta or sysex event
 			{
 				MetaEvent e = new MetaEvent();
 				int time = absoluteTime;
 				e.Type = stream.ReadByte();
 				ChunkBytesRead++;
 				int length = readVarLengthValue(stream);
-				if (e.Type == 0x3f && length != 0)
+				if (e.Type == 0x2f && length != 0)
 					throw (new Exception("End-of-track event has data length of " + length + ". Should be 0."));
 				e.Data = stream.ReadBytes(length);
 				ChunkBytesRead += length;
@@ -360,14 +363,6 @@ namespace Midi
 				if (e.Type != 0x2f && ChunkBytesRead >= chunkSize)
 					throw (new Exception("End-of-track event missing at end of track."));
 			}
-			else if (firstByte == 0xf0 || firstByte == 0xf7) //sysex
-			{
-				while (firstByte != 0xf7)
-				{
-					firstByte = stream.ReadByte();
-					ChunkBytesRead++;
-				}
-			}
 			else //Channel event
 			{
 				ChannelEvent chnEvent = new ChannelEvent();
@@ -377,13 +372,15 @@ namespace Midi
 				{
 					//splitByte(out chnEvent.Type, out chnEvent.Channel, firstByte);
 					chnEvent.Type = (byte)((firstByte >> 4) & 0xf);
-					runningStatus[chnEvent.Channel].type = chnEvent.Type;
+					runningStatus.eventType = chnEvent.Type;
+					runningStatus.channel = chnEvent.Channel;
 					chnEvent.Param1 = stream.ReadByte();
 					ChunkBytesRead++;
 				}
 				else //Running status
 				{
-					chnEvent.Type = runningStatus[chnEvent.Channel].type;
+					chnEvent.Type = runningStatus.eventType;
+					chnEvent.Channel = runningStatus.channel;
 					chnEvent.Param1 = firstByte;
 				}
 				if (chnEvent.Type != 0xc && chnEvent.Type != 0xd)
@@ -392,24 +389,30 @@ namespace Midi
 					ChunkBytesRead++;
 				}
 				
-				if (chnEvent.Type == 0x9)  //Note on
+				if (chnEvent.Type == 0x9)  //Note on/off
 				{
 					//param1 = pitch, param2 = velocity
-					if (minPitch > chnEvent.Param1)
-						minPitch = chnEvent.Param1;
-					if (maxPitch < chnEvent.Param1)
-						maxPitch = chnEvent.Param1;
+
+					//Note off if velocity is 0
 					if (chnEvent.Param2 == 0)
-						chnEvent.Type = 0x8;  //Turn off note if velocity is 0
+						chnEvent.Type = 0x8;
+					else //Note on
+					{
+						startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1] = absoluteTime;
+						if (minPitch > chnEvent.Param1)
+							minPitch = chnEvent.Param1;
+						if (maxPitch < chnEvent.Param1)
+							maxPitch = chnEvent.Param1;
+					}
 				}
 				if (chnEvent.Type == 0x8)  //note off
 				{
 					//param1 = pitch, param2 = velocity
-					if (pitchStatus[chnEvent.Channel, chnEvent.Param1] == -1)
+					if (startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1] == -1)
 						return;
 
 					Note note = new Note();
-					note.start = pitchStatus[chnEvent.Channel, chnEvent.Param1];
+					note.start = startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1];
 					note.stop = absoluteTime;
 					note.channel = chnEvent.Channel;
 					note.pitch = chnEvent.Param1;
@@ -422,16 +425,12 @@ namespace Midi
 							break;
 						}
 					}
-					pitchStatus[chnEvent.Channel, chnEvent.Param1] = -1;
+					startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1] = -1;
 				}
-				else if (chnEvent.Type == 0x9)
-				{
-					pitchStatus[chnEvent.Channel, chnEvent.Param1] = absoluteTime;
-				}
-				else
-					track.addEvent(time, chnEvent);
+				//else
+					//track.addEvent(time, chnEvent);
 				if (ChunkBytesRead >= chunkSize)
-					throw (new Exception("Error at chunk byte "+ChunkBytesRead+" of "+chunkSize+". Last track event is channel event. Shouls be meta event."));
+					throw (new Exception("Error at chunk byte "+ChunkBytesRead+" of "+chunkSize+". Last track event is channel event. Should be meta event."));
 
 			}
 		}

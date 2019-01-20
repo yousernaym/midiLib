@@ -49,100 +49,94 @@ namespace Midi
 
 	public partial class Song
 	{
-		//static string modWavFileName = Path.GetDirectoryName(Application.ExecutablePath) + "\\music.wav";
-		//static public string ModWavFileName
+		//public static string MixdownDir { get; set; } = "";
+		//public static string MixdownFileName { get; set; } = ""; //"" = source filename minus extension plus .wav
+
+		//[DllImport("NoteExtractor.dll", EntryPoint = "initLib", CallingConvention = CallingConvention.Cdecl)]
+		//static extern void initNoteExtractor();
+		//[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl)]
+		//public static extern void exitLib();
+		//[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+		//static extern bool loadFile(string path, out Marshal_Song marSong, string mixdownPath, bool modInsTrack, double songLengthS, int subSong);
+		//[DllImport("NoteExtractor.dll", EntryPoint = "getMixdownPath", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+		//static extern IntPtr getMixdownPath_intptr();
+		//public static string getMixdownPath()
 		//{
-		//    get { return modWavFileName; }
-		//    //set { modWavFileName = value; }
+		//	return Marshal.PtrToStringAnsi(getMixdownPath_intptr());
 		//}
-		public static string MixdownDir { get; set; } = "";
-		public static string MixdownFileName { get; set; } = ""; //"" = source filename minus extension plus .wav
+		//public static void initLib(string mixdownDir, string mixdownFileName = "")
+		//{
+		//	MixdownDir = mixdownDir;
+		//	MixdownFileName = mixdownFileName;
+		//	Directory.CreateDirectory(mixdownDir);
+		//	initNoteExtractor();
+		//}
+		//public static void deleteMixdowns()
+		//{
+		//	if (Directory.Exists(MixdownDir))
+		//	{
+		//		foreach (string file in Directory.GetFiles(MixdownDir))
+		//			File.Delete(file);
+		//	}
+		//}
+		//public static void deleteMixdownDir()
+		//{
+		//	deleteMixdowns();
+		//	if (Directory.Exists(MixdownDir))
+		//		Directory.Delete(MixdownDir);
+		//}
 
-		[DllImport("NoteExtractor.dll", EntryPoint = "initLib", CallingConvention = CallingConvention.Cdecl)]
-		static extern void initNoteExtractor();
-		[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl)]
-		public static extern void exitLib();
-		[DllImport("NoteExtractor.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-		static extern bool loadFile(string path, out Marshal_Song marSong, string mixdownPath, bool modInsTrack, double songLengthS, int subSong);
-		[DllImport("NoteExtractor.dll", EntryPoint = "getMixdownPath", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-		static extern IntPtr getMixdownPath_intptr();
-		public static string getMixdownPath()
-		{
-			return Marshal.PtrToStringAnsi(getMixdownPath_intptr());
-		}
-		public static void initLib(string mixdownDir, string mixdownFileName = "")
-		{
-			MixdownDir = mixdownDir;
-			MixdownFileName = mixdownFileName;
-			Directory.CreateDirectory(mixdownDir);
-			initNoteExtractor();
-		}
-		public static void deleteMixdowns()
-		{
-			if (Directory.Exists(MixdownDir))
-			{
-				foreach (string file in Directory.GetFiles(MixdownDir))
-					File.Delete(file);
-			}
-		}
-		public static void deleteMixdownDir()
-		{
-			deleteMixdowns();
-			if (Directory.Exists(MixdownDir))
-				Directory.Delete(MixdownDir);
-		}
+		//void importSongFile(ImportOptions options, out string mixdownPath)
+		//{
+		//	//bool mixdown = audioPath == null || audioPath == "";
+		//	Marshal_Song marSong;
+		//	string mixdownFileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(options.NotePath) + ".wav" : MixdownFileName;
+		//	mixdownPath = options.MixdownType == MixdownType.Internal ? Path.Combine(MixdownDir, mixdownFileName) : null;
 
-		void importSongFile(ImportOptions options, out string mixdownPath)
-		{
-			//bool mixdown = audioPath == null || audioPath == "";
-			Marshal_Song marSong;
-			string mixdownFileName = string.IsNullOrWhiteSpace(MixdownFileName) ? Path.GetFileName(options.NotePath) + ".wav" : MixdownFileName;
-			mixdownPath = options.MixdownType == MixdownType.Internal ? Path.Combine(MixdownDir, mixdownFileName) : null;
+		//	//WebBrowser browser = new WebBrowser();
+		//	//string path = "file://" + Path.Combine(Directory.GetCurrentDirectory(), "..\\..\\..\\tparty\\SidSPectro", "index.html");
+		//	//browser.Url = new Uri(path);
+		//	//browser.ObjectForScripting = 
 
-			//WebBrowser browser = new WebBrowser();
-			//string path = "file://" + Path.Combine(Directory.GetCurrentDirectory(), "..\\..\\..\\tparty\\SidSPectro", "index.html");
-			//browser.Url = new Uri(path);
-			//browser.ObjectForScripting = 
-
-			if (!loadFile(options.NotePath, out marSong, mixdownPath, options.InsTrack, options.SongLengthS, options.SubSong))
-			{
-				throw new FileFormatException(new Uri(options.NotePath));
-			}
-			ticksPerBeat = marSong.ticksPerBeat;
-			songLengtT = marSong.songLengthT;
-			maxPitch = marSong.maxPitch;
-			minPitch = marSong.minPitch;
-			numPitches = maxPitch - minPitch + 1;
-			tempoEvents = new List<TempoEvent>(marSong.numTempoEvents);
-			for (int i = 0; i < marSong.numTempoEvents; i++)
-			{
-				Marshal_TempoEvent mte = new Marshal_TempoEvent();
-				mte = (Marshal_TempoEvent)Marshal.PtrToStructure(marSong.tempoEvents, typeof(Marshal_TempoEvent));
-				tempoEvents.Add(new TempoEvent(mte.time, mte.tempo));
-                marSong.tempoEvents += Marshal.SizeOf(typeof(Marshal_TempoEvent));
-			}
-			tracks = new List<Track>(marSong.numTracks);
-			for (int i = 0; i < marSong.numTracks; i++)
-			{
-				Marshal_Track mt = new Marshal_Track();
-				mt = (Marshal_Track)Marshal.PtrToStructure(marSong.tracks, typeof(Marshal_Track));
-				tracks.Add(new Track());
-				tracks[i].Name = Marshal.PtrToStringAnsi(mt.name);
-				tracks[i].Notes = new List<Note>(mt.numNotes);
-				tracks[i].Length = marSong.songLengthT;
-				for (int j = 0; j < mt.numNotes; j++)
-				{
-					Marshal_Note mn = new Marshal_Note();
-					mn = (Marshal_Note)Marshal.PtrToStructure(mt.notes, typeof(Marshal_Note));
-					tracks[i].Notes.Add(new Note());
-					tracks[i].Notes[j].pitch = mn.pitch;
-					tracks[i].Notes[j].start = mn.start;
-					tracks[i].Notes[j].stop = mn.stop;
-					mt.notes += Marshal.SizeOf(typeof(Marshal_Note));
-				}
-                marSong.tracks += Marshal.SizeOf(typeof(Marshal_Track));
-			}
-		}
+		//	if (!loadFile(options.NotePath, out marSong, mixdownPath, options.InsTrack, options.SongLengthS, options.SubSong))
+		//	{
+		//		throw new FileFormatException(new Uri(options.NotePath));
+		//	}
+		//	ticksPerBeat = marSong.ticksPerBeat;
+		//	songLengtT = marSong.songLengthT;
+		//	maxPitch = marSong.maxPitch;
+		//	minPitch = marSong.minPitch;
+		//	numPitches = maxPitch - minPitch + 1;
+		//	tempoEvents = new List<TempoEvent>(marSong.numTempoEvents);
+		//	for (int i = 0; i < marSong.numTempoEvents; i++)
+		//	{
+		//		Marshal_TempoEvent mte = new Marshal_TempoEvent();
+		//		mte = (Marshal_TempoEvent)Marshal.PtrToStructure(marSong.tempoEvents, typeof(Marshal_TempoEvent));
+		//		tempoEvents.Add(new TempoEvent(mte.time, mte.tempo));
+  //              marSong.tempoEvents += Marshal.SizeOf(typeof(Marshal_TempoEvent));
+		//	}
+		//	tracks = new List<Track>(marSong.numTracks);
+		//	for (int i = 0; i < marSong.numTracks; i++)
+		//	{
+		//		Marshal_Track mt = new Marshal_Track();
+		//		mt = (Marshal_Track)Marshal.PtrToStructure(marSong.tracks, typeof(Marshal_Track));
+		//		tracks.Add(new Track());
+		//		tracks[i].Name = Marshal.PtrToStringAnsi(mt.name);
+		//		tracks[i].Notes = new List<Note>(mt.numNotes);
+		//		tracks[i].Length = marSong.songLengthT;
+		//		for (int j = 0; j < mt.numNotes; j++)
+		//		{
+		//			Marshal_Note mn = new Marshal_Note();
+		//			mn = (Marshal_Note)Marshal.PtrToStructure(mt.notes, typeof(Marshal_Note));
+		//			tracks[i].Notes.Add(new Note());
+		//			tracks[i].Notes[j].pitch = mn.pitch;
+		//			tracks[i].Notes[j].start = mn.start;
+		//			tracks[i].Notes[j].stop = mn.stop;
+		//			mt.notes += Marshal.SizeOf(typeof(Marshal_Note));
+		//		}
+  //              marSong.tracks += Marshal.SizeOf(typeof(Marshal_Track));
+		//	}
+		//}
 	}
 
 	public class ImportOptions
