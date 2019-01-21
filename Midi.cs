@@ -196,8 +196,8 @@ namespace Midi
 
 	class RunningStatus
 	{
-		public byte eventType;
-		public byte channel;
+		public byte EventType;
+		public byte Channel;
 	}
 
 	public partial class Song
@@ -322,11 +322,7 @@ namespace Midi
 			}
 			return value;
 		}
-		void splitByte(out byte value1, out byte value2, byte b)
-		{
-			value1 = (byte)((b >> 4) & 15);
-			value2 = (byte)(b & 15);
-		}
+		
 		void readEvent(Track track, ref int absoluteTime, BEBinaryReader stream, int chunkSize)
 		{
 			int deltaTime = readVarLengthValue(stream);
@@ -334,7 +330,7 @@ namespace Midi
 					
 			byte firstByte = stream.ReadByte(); //First byte in event
 			ChunkBytesRead++;
-			if (firstByte == 0xff || firstByte == 0xf0 || firstByte == 0xf7) //meta or sysex event
+			if (firstByte == 0xff) //meta or sysex event
 			{
 				MetaEvent e = new MetaEvent();
 				int time = absoluteTime;
@@ -363,24 +359,33 @@ namespace Midi
 				if (e.Type != 0x2f && ChunkBytesRead >= chunkSize)
 					throw (new Exception("End-of-track event missing at end of track."));
 			}
+			else if (firstByte == 0xf0 || firstByte == 0xf7) //sysex
+			{
+				byte b;
+				do
+				{
+					b = stream.ReadByte();
+					ChunkBytesRead++;
+				} while (b != 0xf7);
+			}
 			else //Channel event
 			{
-				ChannelEvent chnEvent = new ChannelEvent();
-				chnEvent.Channel = (byte)(firstByte & 0xf);
+				ChannelEvent chnEvent = new ChannelEvent
+				{
+		
+				};
 				int time = absoluteTime;
 				if (firstByte > 127) //Status information present
 				{
-					//splitByte(out chnEvent.Type, out chnEvent.Channel, firstByte);
-					chnEvent.Type = (byte)((firstByte >> 4) & 0xf);
-					runningStatus.eventType = chnEvent.Type;
-					runningStatus.channel = chnEvent.Channel;
+					chnEvent.Channel = runningStatus.Channel = (byte)(firstByte & 0xf);
+					chnEvent.Type = runningStatus.EventType = (byte)((firstByte >> 4) & 0xf);
 					chnEvent.Param1 = stream.ReadByte();
 					ChunkBytesRead++;
 				}
 				else //Running status
 				{
-					chnEvent.Type = runningStatus.eventType;
-					chnEvent.Channel = runningStatus.channel;
+					chnEvent.Type = runningStatus.EventType;
+					chnEvent.Channel = runningStatus.Channel;
 					chnEvent.Param1 = firstByte;
 				}
 				if (chnEvent.Type != 0xc && chnEvent.Type != 0xd)
