@@ -131,22 +131,7 @@ namespace Midi
 			int index = Notes.BinarySearch(refNote, Comparer<Note>.Create(noteStartBeforeStopComp));
 			if (index < 0)
 				return index;
-			//Find a note crossing "time"
-			//int step = Notes.Count / 2;
-			//int index = 0;
-			//while (true)
-			//{
-			//	if (Notes[index].start > time)
-			//		index -= step;
-			//	else if (Notes[index].stop < time)
-			//		index += step;
-			//	else
-			//		break;
-			//	step /= 2;
-			//	if (step == 0)
-			//		return -1;
-			//}
-
+			
 			//Find last matching note
 			while (index + 1 < Notes.Count && Notes[index + 1].start < time)
 				index++;
@@ -268,7 +253,10 @@ namespace Midi
 					if (Tracks.Last().Length < absoluteTime)
 						Tracks.Last().Length = absoluteTime;
 				}
-
+				if (formatType == 0)
+				{
+					Tracks.Add(tracks[0]);
+				}
 				numPitches = maxPitch - minPitch + 1;
 			}
 		}
