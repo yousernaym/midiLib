@@ -219,45 +219,53 @@ namespace Midi
 		public void openMidiFile(string path)
 		{
 			BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open));
-			using (file)
+			var pathUri = new Uri(path);
+			try
 			{
-				//Header
-				int headerId = file.ReadInt32();
-				if (headerId != 0x4D546864)
-					throw (new FormatException("Unrecognized midi format."));
-				int headerSize = file.ReadInt32();
-				formatType = (int)file.ReadInt16();
-				int numTracks = (int)file.ReadInt16();
-				ticksPerBeat = (int)file.ReadInt16();
-				songLengtT = 0;
-				maxPitch = 0;
-				minPitch = 127;
-				tracks = new List<Track>();
-				tempoEvents = new List<TempoEvent>();
-				//Track chunks
-				for (int i = 0; i < numTracks; i++)
+				using (file)
 				{
-					tracks.Add(new Track());
-					int chunkId = file.ReadInt32();
-					if (chunkId != 0x4D54726B)
-						throw (new FormatException("Wrong chunk id for track " + i + "."));
-					int chunkSize = file.ReadInt32();
-					chunkBytesRead = 0;
-					int absoluteTime = 0;
-					while (chunkBytesRead < chunkSize)
+					//Header
+					int headerId = file.ReadInt32();
+					if (headerId != 0x4D546864)
+						throw (new FileFormatException(pathUri, "Unrecognized midi format."));
+					int headerSize = file.ReadInt32();
+					formatType = (int)file.ReadInt16();
+					int numTracks = (int)file.ReadInt16();
+					ticksPerBeat = (int)file.ReadInt16();
+					songLengtT = 0;
+					maxPitch = 0;
+					minPitch = 127;
+					tracks = new List<Track>();
+					tempoEvents = new List<TempoEvent>();
+					//Track chunks
+					for (int i = 0; i < numTracks; i++)
 					{
-						readEvent(Tracks.Last(), ref absoluteTime, file, chunkSize);
+						tracks.Add(new Track());
+						int chunkId = file.ReadInt32();
+						if (chunkId != 0x4D54726B)
+							throw (new FileFormatException(pathUri, "Wrong chunk id for track " + i + "."));
+						int chunkSize = file.ReadInt32();
+						chunkBytesRead = 0;
+						int absoluteTime = 0;
+						while (chunkBytesRead < chunkSize)
+						{
+							readEvent(Tracks.Last(), ref absoluteTime, file, chunkSize, pathUri);
+						}
+						if (songLengtT < absoluteTime)
+							songLengtT = absoluteTime;
+						if (Tracks.Last().Length < absoluteTime)
+							Tracks.Last().Length = absoluteTime;
 					}
-					if (songLengtT < absoluteTime)
-						songLengtT = absoluteTime;
-					if (Tracks.Last().Length < absoluteTime)
-						Tracks.Last().Length = absoluteTime;
+					if (formatType == 0)
+					{
+						Tracks.Add(tracks[0]);
+					}
+					numPitches = maxPitch - minPitch + 1;
 				}
-				if (formatType == 0)
-				{
-					Tracks.Add(tracks[0]);
-				}
-				numPitches = maxPitch - minPitch + 1;
+			}
+			catch (EndOfStreamException)
+			{
+				throw new FileFormatException(pathUri, "Unexpected end of file.");
 			}
 		}
 		
@@ -275,7 +283,7 @@ namespace Midi
 			return value;
 		}
 		
-		void readEvent(Track track, ref int absoluteTime, BEBinaryReader stream, int chunkSize)
+		void readEvent(Track track, ref int absoluteTime, BEBinaryReader stream, int chunkSize, Uri fileUri)
 		{
 			int deltaTime = readVarLengthValue(stream);
 			absoluteTime += deltaTime;
@@ -290,7 +298,7 @@ namespace Midi
 				chunkBytesRead++;
 				int length = readVarLengthValue(stream);
 				if (e.Type == 0x2f && length != 0)
-					throw (new Exception("End-of-track event has data length of " + length + ". Should be 0."));
+					throw (new FileFormatException("End-of-track event has data length of " + length + ". Should be 0."));
 				e.Data = stream.ReadBytes(length);
 				chunkBytesRead += length;
 				if (e.Type == 0x51) //Tempo event
@@ -305,9 +313,9 @@ namespace Midi
 				}
 				
 				if (e.Type == 0x2f && chunkBytesRead != chunkSize)
-					throw (new Exception("End-of-track event at byte "+ chunkBytesRead + " of "+chunkSize+"."));
+					throw (new FileFormatException(fileUri, "End-of-track event at byte "+ chunkBytesRead + " of "+chunkSize+"."));
 				if (e.Type != 0x2f && chunkBytesRead >= chunkSize)
-					throw (new Exception("End-of-track event missing at end of track."));
+					throw (new FileFormatException(fileUri, "End-of-track event missing at end of track."));
 			}
 			else if (firstByte == 0xf0 || firstByte == 0xf7) //sysex
 			{
@@ -384,7 +392,7 @@ namespace Midi
 				}
 				
 				if (chunkBytesRead >= chunkSize)
-					throw (new Exception("Error at chunk byte "+ chunkBytesRead + " of "+chunkSize+". Last track event is channel event. Should be meta event."));
+					throw (new FileFormatException(fileUri, "Error at chunk byte " + chunkBytesRead + " of "+chunkSize+". Last track event is a channel event. Should be meta event."));
 
 			}
 		}
