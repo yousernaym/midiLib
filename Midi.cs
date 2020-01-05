@@ -176,7 +176,7 @@ namespace Midi
 
 	public partial class Song
 	{
-		int[,] startOfPlayingNotes = new int[16, 128];
+		LinkedList<int>[,] startOfPlayingNotes = new LinkedList<int>[16, 128];
 		RunningStatus runningStatus = new RunningStatus();
 		int chunkBytesRead;
 		List<Track> tracks;
@@ -202,7 +202,7 @@ namespace Midi
 		{
 			for (int i = 0; i < startOfPlayingNotes.GetLength(0); i++)
 				for (int j = 0; j < startOfPlayingNotes.GetLength(1); j++)
-					startOfPlayingNotes[i, j] = -1;
+					startOfPlayingNotes[i, j] = new LinkedList<int>();
 		}
 		public bool isMidiFile(string path)
 		{
@@ -361,7 +361,7 @@ namespace Midi
 						chnEvent.Type = 0x8;
 					else //Note on
 					{
-						startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1] = absoluteTime;
+						startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].AddLast(absoluteTime);
 						if (minPitch > chnEvent.Param1)
 							minPitch = chnEvent.Param1;
 						if (maxPitch < chnEvent.Param1)
@@ -371,11 +371,11 @@ namespace Midi
 				if (chnEvent.Type == 0x8)  //note off
 				{
 					//param1 = pitch, param2 = velocity
-					if (startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1] == -1)
+					if (startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].Count == 0)
 						return;
 
 					Note note = new Note();
-					note.start = startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1];
+					note.start = startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].First();
 					note.stop = absoluteTime;
 					note.channel = chnEvent.Channel;
 					note.pitch = chnEvent.Param1;
@@ -388,14 +388,14 @@ namespace Midi
 							break;
 						}
 					}
-					startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1] = -1;
+					startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].RemoveFirst();
 				}
-				
+
 				if (chunkBytesRead >= chunkSize)
 					throw (new FileFormatException(fileUri, "Error at chunk byte " + chunkBytesRead + " of "+chunkSize+". Last track event is a channel event. Should be meta event."));
-
 			}
 		}
+
 		public void createNoteBsp()
 		{
 			foreach (Track track in Tracks)
