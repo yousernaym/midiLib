@@ -219,7 +219,7 @@ namespace Midi
 		public void openMidiFile(string path)
 		{
 			BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open));
-			var pathUri = new Uri(path);
+			var fileUri = new Uri(path);
 			try
 			{
 				using (file)
@@ -227,7 +227,7 @@ namespace Midi
 					//Header
 					int headerId = file.ReadInt32();
 					if (headerId != 0x4D546864)
-						throw (new FileFormatException(pathUri, "Unrecognized midi format."));
+						throw (new FileFormatException(fileUri, "Unrecognized midi format."));
 					int headerSize = file.ReadInt32();
 					formatType = (int)file.ReadInt16();
 					int numTracks = (int)file.ReadInt16();
@@ -243,13 +243,13 @@ namespace Midi
 						tracks.Add(new Track());
 						int chunkId = file.ReadInt32();
 						if (chunkId != 0x4D54726B)
-							throw (new FileFormatException(pathUri, "Wrong chunk id for track " + i + "."));
+							throw (new FileFormatException(fileUri, "Wrong chunk id for track " + i + "."));
 						int chunkSize = file.ReadInt32();
 						chunkBytesRead = 0;
 						int absoluteTime = 0;
 						while (chunkBytesRead < chunkSize)
 						{
-							readEvent(Tracks.Last(), ref absoluteTime, file, chunkSize, pathUri);
+							readEvent(Tracks.Last(), ref absoluteTime, file, chunkSize, fileUri);
 						}
 						if (songLengtT < absoluteTime)
 							songLengtT = absoluteTime;
@@ -265,7 +265,7 @@ namespace Midi
 			}
 			catch (EndOfStreamException)
 			{
-				throw new FileFormatException(pathUri, "Unexpected end of file.");
+				throw new FileFormatException(fileUri, "Unexpected end of file.");
 			}
 		}
 		
@@ -298,7 +298,7 @@ namespace Midi
 				chunkBytesRead++;
 				int length = readVarLengthValue(stream);
 				if (e.Type == 0x2f && length != 0)
-					throw (new FileFormatException("End-of-track event has data length of " + length + ". Should be 0."));
+					throw (new FileFormatException(fileUri, "End-of-track event has data length of " + length + ". Should be 0."));
 				e.Data = stream.ReadBytes(length);
 				chunkBytesRead += length;
 				if (e.Type == 0x51) //Tempo event
