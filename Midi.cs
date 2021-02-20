@@ -305,7 +305,12 @@ namespace Midi
 				{
 					TempoEvent te = new TempoEvent(absoluteTime, e.Data);
 					if (!double.IsInfinity(te.Tempo))
-						tempoEvents.Add(te);
+					{
+						if (tempoEvents.Count > 0 && te.Time == tempoEvents.Last().Time)
+							tempoEvents[tempoEvents.Count - 1] = te;
+						else
+							tempoEvents.Add(te);
+					}
 				}
 				else if (e.Type == 0x03)
 				{
