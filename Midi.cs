@@ -218,54 +218,56 @@ namespace Midi
 
 		public void openMidiFile(string path)
 		{
-			BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open));
-			var fileUri = new Uri(path);
-			try
+			using (BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open)))
 			{
-				using (file)
+				var fileUri = new Uri(path);
+				try
 				{
-					//Header
-					int headerId = file.ReadInt32();
-					if (headerId != 0x4D546864)
-						throw (new FileFormatException(fileUri, "Unrecognized midi format."));
-					int headerSize = file.ReadInt32();
-					formatType = (int)file.ReadInt16();
-					int numTracks = (int)file.ReadInt16();
-					ticksPerBeat = (int)file.ReadInt16();
-					songLengtT = 0;
-					maxPitch = 0;
-					minPitch = 127;
-					tracks = new List<Track>();
-					tempoEvents = new List<TempoEvent>();
-					//Track chunks
-					for (int i = 0; i < numTracks; i++)
+					using (file)
 					{
-						tracks.Add(new Track());
-						int chunkId = file.ReadInt32();
-						if (chunkId != 0x4D54726B)
-							throw (new FileFormatException(fileUri, "Wrong chunk id for track " + i + "."));
-						int chunkSize = file.ReadInt32();
-						chunkBytesRead = 0;
-						int absoluteTime = 0;
-						while (chunkBytesRead < chunkSize)
+						//Header
+						int headerId = file.ReadInt32();
+						if (headerId != 0x4D546864)
+							throw (new FileFormatException(fileUri, "Unrecognized midi format."));
+						int headerSize = file.ReadInt32();
+						formatType = (int)file.ReadInt16();
+						int numTracks = (int)file.ReadInt16();
+						ticksPerBeat = (int)file.ReadInt16();
+						songLengtT = 0;
+						maxPitch = 0;
+						minPitch = 127;
+						tracks = new List<Track>();
+						tempoEvents = new List<TempoEvent>();
+						//Track chunks
+						for (int i = 0; i < numTracks; i++)
 						{
-							readEvent(Tracks.Last(), ref absoluteTime, file, chunkSize, fileUri);
+							tracks.Add(new Track());
+							int chunkId = file.ReadInt32();
+							if (chunkId != 0x4D54726B)
+								throw (new FileFormatException(fileUri, "Wrong chunk id for track " + i + "."));
+							int chunkSize = file.ReadInt32();
+							chunkBytesRead = 0;
+							int absoluteTime = 0;
+							while (chunkBytesRead < chunkSize)
+							{
+								readEvent(Tracks.Last(), ref absoluteTime, file, chunkSize, fileUri);
+							}
+							if (songLengtT < absoluteTime)
+								songLengtT = absoluteTime;
+							if (Tracks.Last().Length < absoluteTime)
+								Tracks.Last().Length = absoluteTime;
 						}
-						if (songLengtT < absoluteTime)
-							songLengtT = absoluteTime;
-						if (Tracks.Last().Length < absoluteTime)
-							Tracks.Last().Length = absoluteTime;
+						if (formatType == 0)
+						{
+							Tracks.Add(tracks[0]);
+						}
+						numPitches = maxPitch - minPitch + 1;
 					}
-					if (formatType == 0)
-					{
-						Tracks.Add(tracks[0]);
-					}
-					numPitches = maxPitch - minPitch + 1;
 				}
-			}
-			catch (EndOfStreamException)
-			{
-				throw new FileFormatException(fileUri, "Unexpected end of file.");
+				catch (EndOfStreamException)
+				{
+					throw new FileFormatException(fileUri, "Unexpected end of file.");
+				}
 			}
 		}
 		
