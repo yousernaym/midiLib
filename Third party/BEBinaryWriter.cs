@@ -68,7 +68,7 @@ namespace GisSharpBlog.NetTopologySuite.IO
         /// <exception cref="T:System.ObjectDisposedException">The stream is closed. </exception>
         /// <exception cref="T:System.IO.IOException">An I/O error occurs. </exception>
         public override void Write(ushort value)
-        {            
+        {
             byte[] bytes = BitConverter.GetBytes(value);
             Debug.Assert(bytes.Length == 2);
 
@@ -185,7 +185,7 @@ namespace GisSharpBlog.NetTopologySuite.IO
         //[Obsolete("Not implemented")]
         //public override void Write(string value)
         //{
-         //   throw new NotImplementedException();
+        //   throw new NotImplementedException();
         //}
 
         /// <summary>
@@ -197,7 +197,7 @@ namespace GisSharpBlog.NetTopologySuite.IO
         //[Obsolete("Not implemented")]
         //public override void Write(decimal value)
         //{
-         //   throw new NotImplementedException();
+        //   throw new NotImplementedException();
         //}
     }
 }
