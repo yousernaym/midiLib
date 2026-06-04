@@ -12,18 +12,18 @@ namespace Midi
 
     public class NoteBsp
     {
-        List<Note> notes;
-        NoteBsp leftNode;
-        NoteBsp rightNode;
-        int leftBound;
-        int rightBound;
-        public void createNode(int x1, int x2, List<Note> nodeNotes, Song song)
+        List<Note> _notes;
+        NoteBsp _leftNode;
+        NoteBsp _rightNode;
+        int _leftBound;
+        int _rightBound;
+        public void CreateNode(int x1, int x2, List<Note> nodeNotes, Song song)
         {
-            leftBound = x1;
-            rightBound = x2;
-            notes = nodeNotes;
+            _leftBound = x1;
+            _rightBound = x2;
+            _notes = nodeNotes;
             int middle = (x2 + x1) / 2;
-            if (notes.Count == 0 || middle - x1 < 4 * song.TicksPerBeat)
+            if (_notes.Count == 0 || middle - x1 < 4 * song.TicksPerBeat)
                 return;
             List<Note> leftNoteList = new List<Note>();
             List<Note> rightNoteList = new List<Note>();
@@ -34,21 +34,21 @@ namespace Midi
                 if (note.start < x2 && note.stop > middle)
                     rightNoteList.Add(note);
             }
-            leftNode = new NoteBsp();
-            leftNode.createNode(x1, middle, leftNoteList, song);
-            rightNode = new NoteBsp();
-            rightNode.createNode(middle, x2, rightNoteList, song);
+            _leftNode = new NoteBsp();
+            _leftNode.CreateNode(x1, middle, leftNoteList, song);
+            _rightNode = new NoteBsp();
+            _rightNode.CreateNode(middle, x2, rightNoteList, song);
         }
-        public List<Note> getNotes(int x1, int x2, int minPitch, int maxPitch)
+        public List<Note> GetNotes(int x1, int x2, int minPitch, int maxPitch)
         {
-            if (leftNode != null && leftNode.leftBound <= x1 && leftNode.rightBound >= x2)
-                return leftNode.getNotes(x1, x2, minPitch, maxPitch);
-            else if (rightNode != null && rightNode.leftBound <= x1 && rightNode.rightBound >= x2)
-                return rightNode.getNotes(x1, x2, minPitch, maxPitch);
+            if (_leftNode != null && _leftNode._leftBound <= x1 && _leftNode._rightBound >= x2)
+                return _leftNode.GetNotes(x1, x2, minPitch, maxPitch);
+            else if (_rightNode != null && _rightNode._leftBound <= x1 && _rightNode._rightBound >= x2)
+                return _rightNode.GetNotes(x1, x2, minPitch, maxPitch);
             else
             {
                 List<Note> selectedNotes = new List<Note>();
-                foreach (Note note in notes)
+                foreach (Note note in _notes)
                 {
                     if (note.pitch >= minPitch && note.pitch <= maxPitch && note.start < x2 && note.stop > x1)
                         selectedNotes.Add(note);
@@ -94,7 +94,7 @@ namespace Midi
             Notes = new List<Note>();
         }
 
-        public List<Note> getNotes(int x1, int x2, int minPitch, int maxPitch)
+        public List<Note> GetNotes(int x1, int x2, int minPitch, int maxPitch)
         {
             if (x2 < 0 || x1 > Length)
                 return new List<Note>();
@@ -102,14 +102,14 @@ namespace Midi
                 x1 = 0;
             if (x2 >= Length)
                 x2 = Length - 1;
-            return NoteBsp.getNotes(x1, x2, minPitch, maxPitch);
+            return NoteBsp.GetNotes(x1, x2, minPitch, maxPitch);
         }
-        public List<Note> getNotes(int x1, int x2)
+        public List<Note> GetNotes(int x1, int x2)
         {
-            return getNotes(x1, x2, 0, 127);
+            return GetNotes(x1, x2, 0, 127);
         }
 
-        int noteStartBeforeStopComp(Note runningNote, Note newNote)
+        int NoteStartBeforeStopComp(Note runningNote, Note newNote)
         {
             if (runningNote.stop < newNote.start)
                 return -1;
@@ -119,14 +119,14 @@ namespace Midi
                 return 0;
         }
 
-        public int getLastNoteIndexAtTime(int time)
+        public int GetLastNoteIndexAtTime(int time)
         {
             if (Notes[0].start > time || Notes.Last().stop < time)
                 return -1;
             Note refNote = new Note();
 
             refNote.start = time;
-            int index = Notes.BinarySearch(refNote, Comparer<Note>.Create(noteStartBeforeStopComp));
+            int index = Notes.BinarySearch(refNote, Comparer<Note>.Create(NoteStartBeforeStopComp));
             if (index < 0)
                 return index;
 
@@ -154,13 +154,13 @@ namespace Midi
         public TempoEvent(int _time, byte[] _tempo)
         {
             Time = _time;
-            setTempo(_tempo);
+            SetTempo(_tempo);
         }
-        public void setTempo(byte[] _tempo)
+        public void SetTempo(byte[] _tempo)
         {
-            setTempo((_tempo[0] << 16) | (_tempo[1] << 8) | _tempo[2]);
+            SetTempo((_tempo[0] << 16) | (_tempo[1] << 8) | _tempo[2]);
         }
-        public void setTempo(int _tempo)
+        public void SetTempo(int _tempo)
         {
             Tempo = (double)(60000000.0 / _tempo);
         }
@@ -174,47 +174,47 @@ namespace Midi
 
     public partial class Song
     {
-        LinkedList<int>[,] startOfPlayingNotes = new LinkedList<int>[16, 128];
-        RunningStatus runningStatus = new RunningStatus();
-        int chunkBytesRead;
-        List<Track> tracks;
-        public List<Track> Tracks { get { return tracks; } set { tracks = value; } }
-        List<TempoEvent> tempoEvents;
-        public List<TempoEvent> TempoEvents { get { return tempoEvents; } set { tempoEvents = value; } }
+        LinkedList<int>[,] _startOfPlayingNotes = new LinkedList<int>[16, 128];
+        RunningStatus _runningStatus = new RunningStatus();
+        int _chunkBytesRead;
+        List<Track> _tracks;
+        public List<Track> Tracks { get { return _tracks; } set { _tracks = value; } }
+        List<TempoEvent> _tempoEvents;
+        public List<TempoEvent> TempoEvents { get { return _tempoEvents; } set { _tempoEvents = value; } }
         public const float StartTempo = 120;
-        int formatType;
-        public int FormatType { get { return formatType; } }
-        int ticksPerBeat;
-        public int TicksPerBeat { get { return ticksPerBeat; } set { ticksPerBeat = value; } }
+        int _formatType;
+        public int FormatType { get { return _formatType; } }
+        int _ticksPerBeat;
+        public int TicksPerBeat { get { return _ticksPerBeat; } set { _ticksPerBeat = value; } }
 
-        int songLengtT;
-        public int SongLengthT { get { return songLengtT; } set { songLengtT = value; } }
-        int minPitch;
-        public int MinPitch { get { return minPitch; } }
-        int maxPitch;
-        public int MaxPitch { get { return maxPitch; } }
-        int numPitches;
-        public int NumPitches { get { return numPitches; } }
+        int _songLengtT;
+        public int SongLengthT { get { return _songLengtT; } set { _songLengtT = value; } }
+        int _minPitch;
+        public int MinPitch { get { return _minPitch; } }
+        int _maxPitch;
+        public int MaxPitch { get { return _maxPitch; } }
+        int _numPitches;
+        public int NumPitches { get { return _numPitches; } }
 
         public Song()
         {
-            for (int i = 0; i < startOfPlayingNotes.GetLength(0); i++)
-                for (int j = 0; j < startOfPlayingNotes.GetLength(1); j++)
-                    startOfPlayingNotes[i, j] = new LinkedList<int>();
+            for (int i = 0; i < _startOfPlayingNotes.GetLength(0); i++)
+                for (int j = 0; j < _startOfPlayingNotes.GetLength(1); j++)
+                    _startOfPlayingNotes[i, j] = new LinkedList<int>();
         }
-        public bool isMidiFile(string path)
+        public bool IsMidiFile(string path)
         {
             using (BinaryReader file = new BinaryReader(File.Open(path, FileMode.Open)))
             {
                 return file.ReadInt32() == 0x4D546864;
             }
         }
-        public void openFile(string path)
+        public void OpenFile(string path)
         {
-            openMidiFile(path);
+            OpenMidiFile(path);
         }
 
-        public void openMidiFile(string path)
+        public void OpenMidiFile(string path)
         {
             using (BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open)))
             {
@@ -228,38 +228,38 @@ namespace Midi
                         if (headerId != 0x4D546864)
                             throw (new FileFormatException(fileUri, "Unrecognized midi format."));
                         int headerSize = file.ReadInt32();
-                        formatType = (int)file.ReadInt16();
+                        _formatType = (int)file.ReadInt16();
                         int numTracks = (int)file.ReadInt16();
-                        ticksPerBeat = (int)file.ReadInt16();
-                        songLengtT = 0;
-                        maxPitch = 0;
-                        minPitch = 127;
-                        tracks = new List<Track>();
-                        tempoEvents = new List<TempoEvent>();
+                        _ticksPerBeat = (int)file.ReadInt16();
+                        _songLengtT = 0;
+                        _maxPitch = 0;
+                        _minPitch = 127;
+                        _tracks = new List<Track>();
+                        _tempoEvents = new List<TempoEvent>();
                         //Track chunks
                         for (int i = 0; i < numTracks; i++)
                         {
-                            tracks.Add(new Track());
+                            _tracks.Add(new Track());
                             int chunkId = file.ReadInt32();
                             if (chunkId != 0x4D54726B)
                                 throw (new FileFormatException(fileUri, "Wrong chunk id for track " + i + "."));
                             int chunkSize = file.ReadInt32();
-                            chunkBytesRead = 0;
+                            _chunkBytesRead = 0;
                             int absoluteTime = 0;
-                            while (chunkBytesRead < chunkSize)
+                            while (_chunkBytesRead < chunkSize)
                             {
-                                readEvent(Tracks.Last(), ref absoluteTime, file, chunkSize, fileUri);
+                                ReadEvent(Tracks.Last(), ref absoluteTime, file, chunkSize, fileUri);
                             }
-                            if (songLengtT < absoluteTime)
-                                songLengtT = absoluteTime;
+                            if (_songLengtT < absoluteTime)
+                                _songLengtT = absoluteTime;
                             if (Tracks.Last().Length < absoluteTime)
                                 Tracks.Last().Length = absoluteTime;
                         }
-                        if (formatType == 0)
+                        if (_formatType == 0)
                         {
-                            Tracks.Add(tracks[0]);
+                            Tracks.Add(_tracks[0]);
                         }
-                        numPitches = maxPitch - minPitch + 1;
+                        _numPitches = _maxPitch - _minPitch + 1;
                     }
                 }
                 catch (EndOfStreamException)
@@ -269,47 +269,47 @@ namespace Midi
             }
         }
 
-        int readVarLengthValue(BEBinaryReader stream)
+        int ReadVarLengthValue(BEBinaryReader stream)
         {
             int value = 0;
             byte b = 128;
             while ((b & 128) == 128)
             {
                 b = stream.ReadByte();
-                chunkBytesRead++;
+                _chunkBytesRead++;
                 value <<= 7;
                 value |= (b & 127);
             }
             return value;
         }
 
-        void readEvent(Track track, ref int absoluteTime, BEBinaryReader stream, int chunkSize, Uri fileUri)
+        void ReadEvent(Track track, ref int absoluteTime, BEBinaryReader stream, int chunkSize, Uri fileUri)
         {
-            int deltaTime = readVarLengthValue(stream);
+            int deltaTime = ReadVarLengthValue(stream);
             absoluteTime += deltaTime;
 
             byte firstByte = stream.ReadByte(); //First byte in event
-            chunkBytesRead++;
+            _chunkBytesRead++;
             if (firstByte == 0xff) //meta or sysex event
             {
                 MetaEvent e = new MetaEvent();
                 int time = absoluteTime;
                 e.Type = stream.ReadByte();
-                chunkBytesRead++;
-                int length = readVarLengthValue(stream);
+                _chunkBytesRead++;
+                int length = ReadVarLengthValue(stream);
                 if (e.Type == 0x2f && length != 0)
                     throw (new FileFormatException(fileUri, "End-of-track event has data length of " + length + ". Should be 0."));
                 e.Data = stream.ReadBytes(length);
-                chunkBytesRead += length;
+                _chunkBytesRead += length;
                 if (e.Type == 0x51) //Tempo event
                 {
                     TempoEvent te = new TempoEvent(absoluteTime, e.Data);
                     if (!double.IsInfinity(te.Tempo))
                     {
-                        if (tempoEvents.Count > 0 && te.Time == tempoEvents.Last().Time)
-                            tempoEvents[tempoEvents.Count - 1] = te;
+                        if (_tempoEvents.Count > 0 && te.Time == _tempoEvents.Last().Time)
+                            _tempoEvents[_tempoEvents.Count - 1] = te;
                         else
-                            tempoEvents.Add(te);
+                            _tempoEvents.Add(te);
                     }
                 }
                 else if (e.Type == 0x03)
@@ -317,9 +317,9 @@ namespace Midi
                     track.Name = ASCIIEncoding.ASCII.GetString(e.Data);
                 }
 
-                if (e.Type == 0x2f && chunkBytesRead != chunkSize)
-                    throw (new FileFormatException(fileUri, "End-of-track event at byte " + chunkBytesRead + " of " + chunkSize + "."));
-                if (e.Type != 0x2f && chunkBytesRead >= chunkSize)
+                if (e.Type == 0x2f && _chunkBytesRead != chunkSize)
+                    throw (new FileFormatException(fileUri, "End-of-track event at byte " + _chunkBytesRead + " of " + chunkSize + "."));
+                if (e.Type != 0x2f && _chunkBytesRead >= chunkSize)
                     throw (new FileFormatException(fileUri, "End-of-track event missing at end of track."));
             }
             else if (firstByte == 0xf0 || firstByte == 0xf7) //sysex
@@ -328,7 +328,7 @@ namespace Midi
                 do
                 {
                     b = stream.ReadByte();
-                    chunkBytesRead++;
+                    _chunkBytesRead++;
                 } while (b != 0xf7);
             }
             else //Channel event
@@ -340,21 +340,21 @@ namespace Midi
                 int time = absoluteTime;
                 if (firstByte > 127) //Status information present
                 {
-                    chnEvent.Channel = runningStatus.Channel = (byte)(firstByte & 0xf);
-                    chnEvent.Type = runningStatus.EventType = (byte)((firstByte >> 4) & 0xf);
+                    chnEvent.Channel = _runningStatus.Channel = (byte)(firstByte & 0xf);
+                    chnEvent.Type = _runningStatus.EventType = (byte)((firstByte >> 4) & 0xf);
                     chnEvent.Param1 = stream.ReadByte();
-                    chunkBytesRead++;
+                    _chunkBytesRead++;
                 }
                 else //Running status
                 {
-                    chnEvent.Type = runningStatus.EventType;
-                    chnEvent.Channel = runningStatus.Channel;
+                    chnEvent.Type = _runningStatus.EventType;
+                    chnEvent.Channel = _runningStatus.Channel;
                     chnEvent.Param1 = firstByte;
                 }
                 if (chnEvent.Type != 0xc && chnEvent.Type != 0xd)
                 {
                     chnEvent.Param2 = stream.ReadByte();
-                    chunkBytesRead++;
+                    _chunkBytesRead++;
                 }
 
                 if (chnEvent.Type == 0x9)  //Note on/off
@@ -366,21 +366,21 @@ namespace Midi
                         chnEvent.Type = 0x8;
                     else //Note on
                     {
-                        startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].AddLast(absoluteTime);
-                        if (minPitch > chnEvent.Param1)
-                            minPitch = chnEvent.Param1;
-                        if (maxPitch < chnEvent.Param1)
-                            maxPitch = chnEvent.Param1;
+                        _startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].AddLast(absoluteTime);
+                        if (_minPitch > chnEvent.Param1)
+                            _minPitch = chnEvent.Param1;
+                        if (_maxPitch < chnEvent.Param1)
+                            _maxPitch = chnEvent.Param1;
                     }
                 }
                 if (chnEvent.Type == 0x8)  //note off
                 {
                     //param1 = pitch, param2 = velocity
-                    if (startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].Count == 0)
+                    if (_startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].Count == 0)
                         return;
 
                     Note note = new Note();
-                    note.start = startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].First();
+                    note.start = _startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].First();
                     note.stop = absoluteTime;
                     note.channel = chnEvent.Channel;
                     note.pitch = chnEvent.Param1;
@@ -393,20 +393,20 @@ namespace Midi
                             break;
                         }
                     }
-                    startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].RemoveFirst();
+                    _startOfPlayingNotes[chnEvent.Channel, chnEvent.Param1].RemoveFirst();
                 }
 
-                if (chunkBytesRead >= chunkSize)
-                    throw (new FileFormatException(fileUri, "Error at chunk byte " + chunkBytesRead + " of " + chunkSize + ". Last track event is a channel event. Should be meta event."));
+                if (_chunkBytesRead >= chunkSize)
+                    throw (new FileFormatException(fileUri, "Error at chunk byte " + _chunkBytesRead + " of " + chunkSize + ". Last track event is a channel event. Should be meta event."));
             }
         }
 
-        public void createNoteBsp()
+        public void CreateNoteBsp()
         {
             foreach (Track track in Tracks)
             {
                 track.NoteBsp = new NoteBsp();
-                track.NoteBsp.createNode(0, SongLengthT, track.Notes, this);
+                track.NoteBsp.CreateNode(0, SongLengthT, track.Notes, this);
             }
         }
     }
