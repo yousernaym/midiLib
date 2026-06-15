@@ -7,9 +7,6 @@ using System.Text;
 
 namespace Midi
 {
-    public enum MixdownType { None, Tparty, Internal }
-    public enum FileType { Midi, Mod, Sid, Hvl };
-
     public class NoteBsp
     {
         List<Note> _notes;
