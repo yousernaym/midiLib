@@ -9,8 +9,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 app after import: MOD/SID/HVL files are converted to MIDI by Remuxer first, then parsed here.
 
 - Output: class library `midilib.dll`, root namespace `Midi`.
-- Target framework: **.NET Framework 4.8** (`v4.8`) - note the host app (VisualMusic) targets net8.0-windows.
+- Target framework: **.NET 10** (`net10.0`), SDK-style project - matching the host app (VisualMusic), which
+  targets net10.0-windows.
 - Built as part of the repo-root `VisualMusic.sln`.
+- References the `System.IO.Packaging` NuGet package solely for `System.IO.FileFormatException` (which lived
+  in `WindowsBase` on .NET Framework). Inside VisualMusic the type is supplied by the Windows Desktop shared
+  framework, so it is not copied to the app output.
 
 ## Structure
 
