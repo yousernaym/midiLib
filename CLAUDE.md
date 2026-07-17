@@ -31,5 +31,5 @@ app; this library only opens MIDI byte streams/files and produces `Midi.Song`.
 ## Consumed by
 
 VisualMusic's `Project` holds a `Midi.Song` as its core note model and drives all rendering and playback
-timing from it. See [../../VisualMusic/AGENTS.md](../../VisualMusic/AGENTS.md) for how notes become geometry,
-and [../../AGENTS.md](../../AGENTS.md) for the repo-wide picture.
+timing from it. See [../../VisualMusic/CLAUDE.md](../../VisualMusic/CLAUDE.md) for how notes become geometry,
+and [../../CLAUDE.md](../../CLAUDE.md) for the repo-wide picture.
