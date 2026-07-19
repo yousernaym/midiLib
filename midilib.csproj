@@ -17,4 +17,11 @@
     <PackageReference Include="System.IO.Packaging" Version="10.0.9" />
   </ItemGroup>
 
+  <!-- Keep the sibling test project out of this library's compile glob. -->
+  <ItemGroup>
+    <Compile Remove="midiLib.Tests\**" />
+    <None Remove="midiLib.Tests\**" />
+    <EmbeddedResource Remove="midiLib.Tests\**" />
+  </ItemGroup>
+
 </Project>
