@@ -40,4 +40,5 @@ and [../../AGENTS.md](../../AGENTS.md) for the repo-wide picture.
 dotnet test midiLib.Tests\midiLib.Tests.csproj --nologo
 ```
 
-Fixtures: repo-root `test-files/minimal.mid` (when built inside the Visual Music tree).
+Fixtures: [`test-files/minimal.mid`](test-files/minimal.mid) (local to this repo; also discovered from the
+Visual Music monorepo via walk-up).

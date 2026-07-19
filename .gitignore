@@ -30,3 +30,7 @@ _ReSharper*/
 .vs/
 #Nuget packages folder
 packages/
+
+# Allow checked-in test fixtures (minimal.mid)
+!test-files/
+!test-files/**
