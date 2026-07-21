@@ -40,5 +40,4 @@ and [../../AGENTS.md](../../AGENTS.md) for the repo-wide picture.
 dotnet test midiLib.Tests\midiLib.Tests.csproj --nologo
 ```
 
-Fixtures: [`test-files/minimal.mid`](test-files/minimal.mid) (local to this repo; also discovered from the
-Visual Music monorepo via walk-up).
+Fixtures: [`test-files/minimal.mid`](test-files/minimal.mid) (copied into the test output by the test csproj).
