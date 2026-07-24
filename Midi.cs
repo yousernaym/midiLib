@@ -201,7 +201,7 @@ namespace Midi
         }
         public bool IsMidiFile(string path)
         {
-            using (BinaryReader file = new BinaryReader(File.Open(path, FileMode.Open)))
+            using (BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open)))
             {
                 return file.ReadInt32() == 0x4D546864;
             }
