@@ -211,6 +211,26 @@ namespace Midi.Tests
         }
 
         [Fact]
+        public void IsMidiFile_reads_header_big_endian()
+        {
+            // File bytes for "MThd" are 4D 54 68 64. A little-endian ReadInt32 would
+            // yield 0x6468544D and falsely reject; BE must match 0x4D546864.
+            var song = new Song();
+            string beHeader = WriteTempMidi(new byte[] { 0x4D, 0x54, 0x68, 0x64 });
+            string leLayout = WriteTempMidi(new byte[] { 0x64, 0x68, 0x54, 0x4D });
+            try
+            {
+                Assert.True(song.IsMidiFile(beHeader));
+                Assert.False(song.IsMidiFile(leLayout));
+            }
+            finally
+            {
+                File.Delete(beHeader);
+                File.Delete(leLayout);
+            }
+        }
+
+        [Fact]
         public void IsMidiFile_short_file_returns_false()
         {
             var song = new Song();

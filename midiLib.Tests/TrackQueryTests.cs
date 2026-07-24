@@ -69,20 +69,53 @@ namespace Midi.Tests
         }
 
         [Fact]
+        public void GetLastNoteIndexAtTime_long_note_after_shorter_later_ended()
+        {
+            // Last-started note has ended, but an earlier longer note still sounds
+            var track = TrackWithNotes(
+                new Note { start = 0, stop = 100, pitch = 60 },
+                new Note { start = 50, stop = 60, pitch = 61 });
+
+            Assert.Equal(0, track.GetLastNoteIndexAtTime(70));
+        }
+
+        [Fact]
+        public void GetLastNoteIndexAtTime_long_note_in_gap_before_next_start()
+        {
+            // Short middle note ended; next note not started yet; long note still sounds
+            var track = TrackWithNotes(
+                new Note { start = 0, stop = 100, pitch = 60 },
+                new Note { start = 50, stop = 60, pitch = 61 },
+                new Note { start = 70, stop = 90, pitch = 62 });
+
+            Assert.Equal(0, track.GetLastNoteIndexAtTime(65));
+        }
+
+        [Fact]
+        public void GetLastNoteIndexAtTime_inclusive_stop()
+        {
+            var track = TrackWithNotes(
+                new Note { start = 0, stop = 100, pitch = 60 },
+                new Note { start = 200, stop = 300, pitch = 62 });
+
+            Assert.Equal(0, track.GetLastNoteIndexAtTime(100));
+            Assert.Equal(-1, track.GetLastNoteIndexAtTime(101));
+        }
+
+        [Fact]
         public void GetLastNoteIndexAtTime_empty_returns_minus_one()
         {
             Assert.Equal(-1, TrackWithNotes().GetLastNoteIndexAtTime(0));
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_gap_returns_negative()
+        public void GetLastNoteIndexAtTime_gap_returns_minus_one()
         {
             var track = TrackWithNotes(
                 new Note { start = 0, stop = 100, pitch = 60 },
                 new Note { start = 200, stop = 300, pitch = 62 });
 
-            // Early bounds check passes (first.start <= time <= last.stop), but BinarySearch finds no match
-            Assert.True(track.GetLastNoteIndexAtTime(150) < 0);
+            Assert.Equal(-1, track.GetLastNoteIndexAtTime(150));
         }
 
         [Fact]

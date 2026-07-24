@@ -106,35 +106,34 @@ namespace Midi
             return GetNotes(x1, x2, 0, 127);
         }
 
-        int NoteStartBeforeStopComp(Note runningNote, Note newNote)
-        {
-            if (runningNote.stop < newNote.start)
-                return -1;
-            else if (runningNote.start > newNote.start)
-                return 1;
-            else
-                return 0;
-        }
-
         public int GetLastNoteIndexAtTime(int time)
         {
-            if (Notes.Count == 0 || Notes[0].start > time || Notes.Last().stop < time)
+            if (Notes.Count == 0 || Notes[0].start > time)
                 return -1;
-            Note refNote = new Note();
 
-            refNote.start = time;
-            int index = Notes.BinarySearch(refNote, Comparer<Note>.Create(NoteStartBeforeStopComp));
-            if (index < 0)
-                return index;
+            // Notes are sorted by start. Find the last index with start <= time.
+            int lo = 0, hi = Notes.Count - 1, lastStart = -1;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) / 2;
+                if (Notes[mid].start <= time)
+                {
+                    lastStart = mid;
+                    lo = mid + 1;
+                }
+                else
+                    hi = mid - 1;
+            }
+            if (lastStart < 0)
+                return -1;
 
-            // Last note still sounding at time (start <= time <= stop), skipping any that already ended
-            int last = index;
-            for (int i = index + 1; i < Notes.Count && Notes[i].start <= time; i++)
+            // Highest index among those that are still sounding (stop >= time)
+            for (int i = lastStart; i >= 0; i--)
             {
                 if (Notes[i].stop >= time)
-                    last = i;
+                    return i;
             }
-            return last;
+            return -1;
         }
     }
     public class TempoEvent
