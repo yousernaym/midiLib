@@ -106,32 +106,25 @@ namespace Midi
             return GetNotes(x1, x2, 0, 127);
         }
 
-        int NoteStartBeforeStopComp(Note runningNote, Note newNote)
+        // Notes sorted by start; last index with start <= time (stop ignored). -1 if none.
+        public int GetLastStartedNoteIndexAtTime(int time)
         {
-            if (runningNote.stop < newNote.start)
+            if (Notes.Count == 0 || Notes[0].start > time)
                 return -1;
-            else if (runningNote.start > newNote.start)
-                return 1;
-            else
-                return 0;
-        }
 
-        public int GetLastNoteIndexAtTime(int time)
-        {
-            if (Notes[0].start > time || Notes.Last().stop < time)
-                return -1;
-            Note refNote = new Note();
-
-            refNote.start = time;
-            int index = Notes.BinarySearch(refNote, Comparer<Note>.Create(NoteStartBeforeStopComp));
-            if (index < 0)
-                return index;
-
-            //Find last matching note
-            while (index + 1 < Notes.Count && Notes[index + 1].start < time)
-                index++;
-
-            return index;
+            int lo = 0, hi = Notes.Count - 1, lastStart = -1;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) / 2;
+                if (Notes[mid].start <= time)
+                {
+                    lastStart = mid;
+                    lo = mid + 1;
+                }
+                else
+                    hi = mid - 1;
+            }
+            return lastStart;
         }
     }
     public class TempoEvent
@@ -201,9 +194,14 @@ namespace Midi
         }
         public bool IsMidiFile(string path)
         {
-            using (BinaryReader file = new BinaryReader(File.Open(path, FileMode.Open)))
+            using (FileStream stream = File.Open(path, FileMode.Open))
             {
-                return file.ReadInt32() == 0x4D546864;
+                if (stream.Length < 4)
+                    return false;
+                using (BEBinaryReader file = new BEBinaryReader(stream))
+                {
+                    return file.ReadInt32() == 0x4D546864;
+                }
             }
         }
         public void OpenFile(string path)

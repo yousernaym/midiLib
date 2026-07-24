@@ -3,58 +3,12 @@ using System.IO;
 using System.IO.Packaging;
 using System.Text;
 using Xunit;
+using static Midi.Tests.MidiTestHelpers;
 
 namespace Midi.Tests
 {
     public class MidiParseTests
     {
-        static byte[] Vlq(int value)
-        {
-            if (value == 0) return new byte[] { 0 };
-            var stack = new System.Collections.Generic.Stack<byte>();
-            stack.Push((byte)(value & 0x7F));
-            value >>= 7;
-            while (value > 0)
-            {
-                stack.Push((byte)((value & 0x7F) | 0x80));
-                value >>= 7;
-            }
-            var bytes = new byte[stack.Count];
-            for (int i = 0; i < bytes.Length; i++)
-                bytes[i] = stack.Pop();
-            return bytes;
-        }
-
-        static byte[] BuildMidi(params byte[][] trackChunks)
-        {
-            using var ms = new MemoryStream();
-            using var w = new BinaryWriter(ms);
-            w.Write(Encoding.ASCII.GetBytes("MThd"));
-            // big-endian header
-            w.Write(new byte[] { 0, 0, 0, 6, 0, 1 });
-            w.Write(new byte[] { 0, (byte)trackChunks.Length, 0x01, 0xE0 }); // 480 TPB
-            foreach (var track in trackChunks)
-            {
-                w.Write(Encoding.ASCII.GetBytes("MTrk"));
-                w.Write(new byte[]
-                {
-                    (byte)((track.Length >> 24) & 0xFF),
-                    (byte)((track.Length >> 16) & 0xFF),
-                    (byte)((track.Length >> 8) & 0xFF),
-                    (byte)(track.Length & 0xFF)
-                });
-                w.Write(track);
-            }
-            return ms.ToArray();
-        }
-
-        static string WriteTempMidi(byte[] data)
-        {
-            string path = Path.Combine(Path.GetTempPath(), "vm_midi_" + Guid.NewGuid().ToString("N") + ".mid");
-            File.WriteAllBytes(path, data);
-            return path;
-        }
-
         [Fact]
         public void OpenMidiFile_rejects_bad_header()
         {
@@ -89,10 +43,10 @@ namespace Midi.Tests
         public void OpenMidiFile_pairs_note_on_and_off()
         {
             using var track = new MemoryStream();
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20 });
+            track.Write(Vlq(0)); track.Write(Tempo120());
             track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 60, 100 });
             track.Write(Vlq(240)); track.Write(new byte[] { 0x80, 60, 0 });
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x2F, 0x00 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
 
             string path = WriteTempMidi(BuildMidi(track.ToArray()));
             try
@@ -113,10 +67,10 @@ namespace Midi.Tests
         public void OpenMidiFile_velocity_zero_is_note_off()
         {
             using var track = new MemoryStream();
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20 });
+            track.Write(Vlq(0)); track.Write(Tempo120());
             track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 64, 80 });
             track.Write(Vlq(100)); track.Write(new byte[] { 0x90, 64, 0 }); // vel 0 = off
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x2F, 0x00 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
 
             string path = WriteTempMidi(BuildMidi(track.ToArray()));
             try
@@ -133,12 +87,12 @@ namespace Midi.Tests
         public void OpenMidiFile_running_status()
         {
             using var track = new MemoryStream();
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20 });
+            track.Write(Vlq(0)); track.Write(Tempo120());
             track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 60, 100 }); // status
             track.Write(Vlq(10)); track.Write(new byte[] { 62, 100 });     // running status note-on
             track.Write(Vlq(100)); track.Write(new byte[] { 0x80, 60, 0 });
             track.Write(Vlq(0)); track.Write(new byte[] { 0x80, 62, 0 });
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x2F, 0x00 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
 
             string path = WriteTempMidi(BuildMidi(track.ToArray()));
             try
@@ -156,10 +110,10 @@ namespace Midi.Tests
         public void OpenMidiFile_tempo_and_track_name()
         {
             using var track = new MemoryStream();
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20 }); // 120 bpm
+            track.Write(Vlq(0)); track.Write(Tempo120()); // 120 bpm
             var name = Encoding.ASCII.GetBytes("Lead");
             track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x03, (byte)name.Length }); track.Write(name);
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x2F, 0x00 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
 
             string path = WriteTempMidi(BuildMidi(track.ToArray()));
             try
@@ -178,12 +132,12 @@ namespace Midi.Tests
         {
             // Two note-ons before first note-off on same pitch/channel → linked-list stack
             using var track = new MemoryStream();
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20 });
+            track.Write(Vlq(0)); track.Write(Tempo120());
             track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 60, 100 });
             track.Write(Vlq(50)); track.Write(new byte[] { 0x90, 60, 90 });
             track.Write(Vlq(50)); track.Write(new byte[] { 0x80, 60, 0 }); // closes first
             track.Write(Vlq(50)); track.Write(new byte[] { 0x80, 60, 0 }); // closes second
-            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x2F, 0x00 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
 
             string path = WriteTempMidi(BuildMidi(track.ToArray()));
             try
@@ -231,6 +185,336 @@ namespace Midi.Tests
             Assert.Equal(60, song.Tracks[0].Notes[0].pitch);
             Assert.Equal("minimal", song.Tracks[0].Name);
             Assert.Equal(120.0, song.TempoEvents[0].Tempo, 3);
+        }
+
+        [Fact]
+        public void OpenFile_reads_minimal_fixture()
+        {
+            var song = new Song();
+            song.OpenFile(TestFiles.PathTo("minimal.mid"));
+            Assert.Single(song.Tracks[0].Notes);
+            Assert.Equal(60, song.Tracks[0].Notes[0].pitch);
+        }
+
+        [Fact]
+        public void IsMidiFile_detects_valid_and_invalid()
+        {
+            var song = new Song();
+            Assert.True(song.IsMidiFile(TestFiles.PathTo("minimal.mid")));
+
+            string junk = WriteTempMidi(Encoding.ASCII.GetBytes("NOTMIDI"));
+            try
+            {
+                Assert.False(song.IsMidiFile(junk));
+            }
+            finally { File.Delete(junk); }
+        }
+
+        [Fact]
+        public void IsMidiFile_reads_header_big_endian()
+        {
+            // File bytes for "MThd" are 4D 54 68 64. A little-endian ReadInt32 would
+            // yield 0x6468544D and falsely reject; BE must match 0x4D546864.
+            var song = new Song();
+            string beHeader = WriteTempMidi(new byte[] { 0x4D, 0x54, 0x68, 0x64 });
+            string leLayout = WriteTempMidi(new byte[] { 0x64, 0x68, 0x54, 0x4D });
+            try
+            {
+                Assert.True(song.IsMidiFile(beHeader));
+                Assert.False(song.IsMidiFile(leLayout));
+            }
+            finally
+            {
+                File.Delete(beHeader);
+                File.Delete(leLayout);
+            }
+        }
+
+        [Fact]
+        public void IsMidiFile_short_file_returns_false()
+        {
+            var song = new Song();
+            string empty = WriteTempMidi(Array.Empty<byte>());
+            string short3 = WriteTempMidi(new byte[] { 0x4D, 0x54, 0x68 });
+            try
+            {
+                Assert.False(song.IsMidiFile(empty));
+                Assert.False(song.IsMidiFile(short3));
+            }
+            finally
+            {
+                File.Delete(empty);
+                File.Delete(short3);
+            }
+        }
+
+        [Fact]
+        public void OpenMidiFile_format_0_duplicates_track()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 60, 100 });
+            track.Write(Vlq(100)); track.Write(new byte[] { 0x80, 60, 0 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
+
+            string path = WriteTempMidi(BuildMidi(0, track.ToArray()));
+            try
+            {
+                var song = new Song();
+                song.OpenMidiFile(path);
+                Assert.Equal(0, song.FormatType);
+                Assert.Equal(2, song.Tracks.Count);
+                Assert.Same(song.Tracks[0], song.Tracks[1]);
+                Assert.Single(song.Tracks[0].Notes);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_multi_track_format_1()
+        {
+            using var t0 = new MemoryStream();
+            t0.Write(Vlq(0)); t0.Write(Tempo120());
+            t0.Write(Vlq(0)); t0.Write(new byte[] { 0x90, 60, 100 });
+            t0.Write(Vlq(100)); t0.Write(new byte[] { 0x80, 60, 0 });
+            t0.Write(Vlq(0)); t0.Write(EndOfTrack());
+
+            using var t1 = new MemoryStream();
+            t1.Write(Vlq(0)); t1.Write(new byte[] { 0x91, 72, 90 });
+            t1.Write(Vlq(200)); t1.Write(new byte[] { 0x81, 72, 0 });
+            t1.Write(Vlq(0)); t1.Write(EndOfTrack());
+
+            string path = WriteTempMidi(BuildMidi(t0.ToArray(), t1.ToArray()));
+            try
+            {
+                var song = new Song();
+                song.OpenMidiFile(path);
+                Assert.Equal(2, song.Tracks.Count);
+                Assert.Single(song.Tracks[0].Notes);
+                Assert.Equal(60, song.Tracks[0].Notes[0].pitch);
+                Assert.Single(song.Tracks[1].Notes);
+                Assert.Equal(72, song.Tracks[1].Notes[0].pitch);
+                Assert.Equal(1, song.Tracks[1].Notes[0].channel);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_non_note_channel_events_are_skipped()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xB0, 7, 100 });  // CC
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xC0, 1 });       // program
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xD0, 64 });      // aftertouch
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xE0, 0, 64 });   // pitch bend
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 60, 100 });
+            track.Write(Vlq(100)); track.Write(new byte[] { 0x80, 60, 0 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                song.OpenMidiFile(path);
+                Assert.Single(song.Tracks[0].Notes);
+                Assert.Equal(60, song.Tracks[0].Notes[0].pitch);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_sysex_is_skipped()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xF0, 0x7E, 0x00, 0xF7 });
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 60, 100 });
+            track.Write(Vlq(100)); track.Write(new byte[] { 0x80, 60, 0 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                song.OpenMidiFile(path);
+                Assert.Single(song.Tracks[0].Notes);
+                Assert.Equal(60, song.Tracks[0].Notes[0].pitch);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_orphan_note_off_is_ignored()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x80, 60, 0 }); // orphan off
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 62, 100 });
+            track.Write(Vlq(50)); track.Write(new byte[] { 0x80, 62, 0 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                song.OpenMidiFile(path);
+                Assert.Single(song.Tracks[0].Notes);
+                Assert.Equal(62, song.Tracks[0].Notes[0].pitch);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_multi_byte_vlq_delta()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 60, 100 });
+            track.Write(Vlq(128)); track.Write(new byte[] { 0x80, 60, 0 }); // VLQ 0x81 0x00
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                song.OpenMidiFile(path);
+                Assert.Single(song.Tracks[0].Notes);
+                Assert.Equal(128, song.Tracks[0].Notes[0].stop);
+                Assert.Equal(128, song.SongLengthT);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_same_time_tempo_replaces()
+        {
+            using var track = new MemoryStream();
+            // 120 bpm then 60 bpm at the same absolute time
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x51, 0x03, 0x0F, 0x42, 0x40 }); // 60 bpm
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                song.OpenMidiFile(path);
+                Assert.Single(song.TempoEvents);
+                Assert.Equal(60.0, song.TempoEvents[0].Tempo, 3);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_sets_pitch_range_and_song_length()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 40, 100 });
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 80, 100 });
+            track.Write(Vlq(200)); track.Write(new byte[] { 0x80, 40, 0 });
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x80, 80, 0 });
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                song.OpenMidiFile(path);
+                Assert.Equal(40, song.MinPitch);
+                Assert.Equal(80, song.MaxPitch);
+                Assert.Equal(41, song.NumPitches);
+                Assert.Equal(200, song.SongLengthT);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_rejects_wrong_track_chunk_id()
+        {
+            using var ms = new MemoryStream();
+            using (var w = new BinaryWriter(ms, Encoding.ASCII, leaveOpen: true))
+            {
+                w.Write(Encoding.ASCII.GetBytes("MThd"));
+                w.Write(new byte[] { 0, 0, 0, 6, 0, 1, 0, 1, 0x01, 0xE0 });
+                w.Write(Encoding.ASCII.GetBytes("XXXX"));
+                w.Write(new byte[] { 0, 0, 0, 4 });
+                w.Write(new byte[] { 0x00, 0xFF, 0x2F, 0x00 });
+            }
+            string path = WriteTempMidi(ms.ToArray());
+            try
+            {
+                var song = new Song();
+                Assert.ThrowsAny<FileFormatException>(() => song.OpenMidiFile(path));
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_rejects_eot_with_nonzero_length()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x2F, 0x01, 0x00 });
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                Assert.ThrowsAny<FileFormatException>(() => song.OpenMidiFile(path));
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_rejects_eot_not_at_end_of_chunk()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(EndOfTrack());
+            // Extra bytes after EOT still counted in chunk size
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x01, 0x01, 0x41 });
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                Assert.ThrowsAny<FileFormatException>(() => song.OpenMidiFile(path));
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_rejects_missing_eot()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(Tempo120());
+            track.Write(Vlq(0)); track.Write(new byte[] { 0xFF, 0x01, 0x01, 0x41 });
+            // Chunk ends on a non-EOT meta event
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                Assert.ThrowsAny<FileFormatException>(() => song.OpenMidiFile(path));
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void OpenMidiFile_rejects_last_event_is_channel()
+        {
+            using var track = new MemoryStream();
+            track.Write(Vlq(0)); track.Write(new byte[] { 0x90, 60, 100 });
+            // Chunk ends on a channel event — no EOT
+
+            string path = WriteTempMidi(BuildMidi(track.ToArray()));
+            try
+            {
+                var song = new Song();
+                Assert.ThrowsAny<FileFormatException>(() => song.OpenMidiFile(path));
+            }
+            finally { File.Delete(path); }
         }
     }
 }
