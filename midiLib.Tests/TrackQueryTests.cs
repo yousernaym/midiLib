@@ -47,6 +47,18 @@ namespace Midi.Tests
         }
 
         [Fact]
+        public void GetLastNoteIndexAtTime_same_start_prefers_highest_sounding_index()
+        {
+            // Equal starts stay in insertion order; shorter later note ends first
+            var track = TrackWithNotes(
+                new Note { start = 50, stop = 100, pitch = 60 },
+                new Note { start = 50, stop = 60, pitch = 62 });
+
+            Assert.Equal(1, track.GetLastNoteIndexAtTime(55));
+            Assert.Equal(0, track.GetLastNoteIndexAtTime(70));
+        }
+
+        [Fact]
         public void GetLastNoteIndexAtTime_later_note_starting_exactly_at_time()
         {
             var track = TrackWithNotes(
