@@ -14,120 +14,96 @@ namespace Midi.Tests
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_hits_sounding_note()
+        public void GetLastStartedNoteIndexAtTime_hits_started_notes()
         {
             var track = TrackWithNotes(
                 new Note { start = 0, stop = 100, pitch = 60 },
                 new Note { start = 200, stop = 300, pitch = 62 });
 
-            Assert.Equal(0, track.GetLastNoteIndexAtTime(50));
-            Assert.Equal(1, track.GetLastNoteIndexAtTime(250));
+            Assert.Equal(0, track.GetLastStartedNoteIndexAtTime(50));
+            Assert.Equal(1, track.GetLastStartedNoteIndexAtTime(250));
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_before_first_or_after_last_returns_minus_one()
+        public void GetLastStartedNoteIndexAtTime_before_first_returns_minus_one()
         {
             var track = TrackWithNotes(
                 new Note { start = 100, stop = 200, pitch = 60 },
                 new Note { start = 300, stop = 400, pitch = 62 });
 
-            Assert.Equal(-1, track.GetLastNoteIndexAtTime(50));
-            Assert.Equal(-1, track.GetLastNoteIndexAtTime(500));
+            Assert.Equal(-1, track.GetLastStartedNoteIndexAtTime(50));
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_overlapping_returns_last_matching()
+        public void GetLastStartedNoteIndexAtTime_after_last_keeps_last_started()
         {
-            // Sorted by start; both sound at time 75
+            var track = TrackWithNotes(
+                new Note { start = 100, stop = 200, pitch = 60 },
+                new Note { start = 300, stop = 400, pitch = 62 });
+
+            // Past every stop — still the last note that has started
+            Assert.Equal(1, track.GetLastStartedNoteIndexAtTime(500));
+        }
+
+        [Fact]
+        public void GetLastStartedNoteIndexAtTime_overlapping_prefers_later_start()
+        {
             var track = TrackWithNotes(
                 new Note { start = 0, stop = 100, pitch = 60 },
                 new Note { start = 50, stop = 150, pitch = 62 });
 
-            Assert.Equal(1, track.GetLastNoteIndexAtTime(75));
+            Assert.Equal(1, track.GetLastStartedNoteIndexAtTime(75));
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_same_start_prefers_highest_sounding_index()
+        public void GetLastStartedNoteIndexAtTime_same_start_prefers_highest_index()
         {
-            // Equal starts stay in insertion order; shorter later note ends first
             var track = TrackWithNotes(
                 new Note { start = 50, stop = 100, pitch = 60 },
                 new Note { start = 50, stop = 60, pitch = 62 });
 
-            Assert.Equal(1, track.GetLastNoteIndexAtTime(55));
-            Assert.Equal(0, track.GetLastNoteIndexAtTime(70));
+            Assert.Equal(1, track.GetLastStartedNoteIndexAtTime(55));
+            // Shorter later note has ended; stay on it (last started)
+            Assert.Equal(1, track.GetLastStartedNoteIndexAtTime(70));
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_later_note_starting_exactly_at_time()
+        public void GetLastStartedNoteIndexAtTime_later_note_starting_exactly_at_time()
         {
             var track = TrackWithNotes(
                 new Note { start = 0, stop = 100, pitch = 60 },
                 new Note { start = 50, stop = 150, pitch = 62 });
 
-            Assert.Equal(1, track.GetLastNoteIndexAtTime(50));
+            Assert.Equal(1, track.GetLastStartedNoteIndexAtTime(50));
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_skips_ended_note_between_sounding()
+        public void GetLastStartedNoteIndexAtTime_stays_on_ended_note_until_next_starts()
         {
-            // Note 1 has started by time 75 but already stopped; note 2 still sounds
+            // C sustained, short D, then E — after D ends stay on D, not jump back to C
             var track = TrackWithNotes(
                 new Note { start = 0, stop = 100, pitch = 60 },
                 new Note { start = 50, stop = 60, pitch = 61 },
                 new Note { start = 70, stop = 90, pitch = 62 });
 
-            Assert.Equal(2, track.GetLastNoteIndexAtTime(75));
+            Assert.Equal(1, track.GetLastStartedNoteIndexAtTime(65));
+            Assert.Equal(2, track.GetLastStartedNoteIndexAtTime(75));
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_long_note_after_shorter_later_ended()
-        {
-            // Last-started note has ended, but an earlier longer note still sounds
-            var track = TrackWithNotes(
-                new Note { start = 0, stop = 100, pitch = 60 },
-                new Note { start = 50, stop = 60, pitch = 61 });
-
-            Assert.Equal(0, track.GetLastNoteIndexAtTime(70));
-        }
-
-        [Fact]
-        public void GetLastNoteIndexAtTime_long_note_in_gap_before_next_start()
-        {
-            // Short middle note ended; next note not started yet; long note still sounds
-            var track = TrackWithNotes(
-                new Note { start = 0, stop = 100, pitch = 60 },
-                new Note { start = 50, stop = 60, pitch = 61 },
-                new Note { start = 70, stop = 90, pitch = 62 });
-
-            Assert.Equal(0, track.GetLastNoteIndexAtTime(65));
-        }
-
-        [Fact]
-        public void GetLastNoteIndexAtTime_inclusive_stop()
+        public void GetLastStartedNoteIndexAtTime_gap_keeps_last_started()
         {
             var track = TrackWithNotes(
                 new Note { start = 0, stop = 100, pitch = 60 },
                 new Note { start = 200, stop = 300, pitch = 62 });
 
-            Assert.Equal(0, track.GetLastNoteIndexAtTime(100));
-            Assert.Equal(-1, track.GetLastNoteIndexAtTime(101));
+            Assert.Equal(0, track.GetLastStartedNoteIndexAtTime(150));
         }
 
         [Fact]
-        public void GetLastNoteIndexAtTime_empty_returns_minus_one()
+        public void GetLastStartedNoteIndexAtTime_empty_returns_minus_one()
         {
-            Assert.Equal(-1, TrackWithNotes().GetLastNoteIndexAtTime(0));
-        }
-
-        [Fact]
-        public void GetLastNoteIndexAtTime_gap_returns_minus_one()
-        {
-            var track = TrackWithNotes(
-                new Note { start = 0, stop = 100, pitch = 60 },
-                new Note { start = 200, stop = 300, pitch = 62 });
-
-            Assert.Equal(-1, track.GetLastNoteIndexAtTime(150));
+            Assert.Equal(-1, TrackWithNotes().GetLastStartedNoteIndexAtTime(0));
         }
 
         [Fact]
