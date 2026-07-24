@@ -118,7 +118,7 @@ namespace Midi
 
         public int GetLastNoteIndexAtTime(int time)
         {
-            if (Notes[0].start > time || Notes.Last().stop < time)
+            if (Notes.Count == 0 || Notes[0].start > time || Notes.Last().stop < time)
                 return -1;
             Note refNote = new Note();
 
@@ -127,11 +127,14 @@ namespace Midi
             if (index < 0)
                 return index;
 
-            //Find last matching note
-            while (index + 1 < Notes.Count && Notes[index + 1].start < time)
-                index++;
-
-            return index;
+            // Last note still sounding at time (start <= time <= stop), skipping any that already ended
+            int last = index;
+            for (int i = index + 1; i < Notes.Count && Notes[i].start <= time; i++)
+            {
+                if (Notes[i].stop >= time)
+                    last = i;
+            }
+            return last;
         }
     }
     public class TempoEvent
@@ -201,9 +204,14 @@ namespace Midi
         }
         public bool IsMidiFile(string path)
         {
-            using (BEBinaryReader file = new BEBinaryReader(File.Open(path, FileMode.Open)))
+            using (FileStream stream = File.Open(path, FileMode.Open))
             {
-                return file.ReadInt32() == 0x4D546864;
+                if (stream.Length < 4)
+                    return false;
+                using (BEBinaryReader file = new BEBinaryReader(stream))
+                {
+                    return file.ReadInt32() == 0x4D546864;
+                }
             }
         }
         public void OpenFile(string path)

@@ -47,6 +47,34 @@ namespace Midi.Tests
         }
 
         [Fact]
+        public void GetLastNoteIndexAtTime_later_note_starting_exactly_at_time()
+        {
+            var track = TrackWithNotes(
+                new Note { start = 0, stop = 100, pitch = 60 },
+                new Note { start = 50, stop = 150, pitch = 62 });
+
+            Assert.Equal(1, track.GetLastNoteIndexAtTime(50));
+        }
+
+        [Fact]
+        public void GetLastNoteIndexAtTime_skips_ended_note_between_sounding()
+        {
+            // Note 1 has started by time 75 but already stopped; note 2 still sounds
+            var track = TrackWithNotes(
+                new Note { start = 0, stop = 100, pitch = 60 },
+                new Note { start = 50, stop = 60, pitch = 61 },
+                new Note { start = 70, stop = 90, pitch = 62 });
+
+            Assert.Equal(2, track.GetLastNoteIndexAtTime(75));
+        }
+
+        [Fact]
+        public void GetLastNoteIndexAtTime_empty_returns_minus_one()
+        {
+            Assert.Equal(-1, TrackWithNotes().GetLastNoteIndexAtTime(0));
+        }
+
+        [Fact]
         public void GetLastNoteIndexAtTime_gap_returns_negative()
         {
             var track = TrackWithNotes(

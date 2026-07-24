@@ -211,6 +211,24 @@ namespace Midi.Tests
         }
 
         [Fact]
+        public void IsMidiFile_short_file_returns_false()
+        {
+            var song = new Song();
+            string empty = WriteTempMidi(Array.Empty<byte>());
+            string short3 = WriteTempMidi(new byte[] { 0x4D, 0x54, 0x68 });
+            try
+            {
+                Assert.False(song.IsMidiFile(empty));
+                Assert.False(song.IsMidiFile(short3));
+            }
+            finally
+            {
+                File.Delete(empty);
+                File.Delete(short3);
+            }
+        }
+
+        [Fact]
         public void OpenMidiFile_format_0_duplicates_track()
         {
             using var track = new MemoryStream();
